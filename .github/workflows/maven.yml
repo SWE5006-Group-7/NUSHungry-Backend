@@ -33,3 +33,7 @@ jobs:
       run: mvn -B package --file pom.xml
     - name: Teardown
       run: docker rm -f nushungry-mysql
+    - name: Lint
+      env:
+        API_KEY: ${{ secrets.NVD_API_KEY }}
+      run: mvn spotbugs:check dependency-check:check dependency-check:check -DnvdApiKey=$NVD_API_KEY
