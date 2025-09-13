@@ -10,9 +10,9 @@ name: CI Pipeline to compile, test and build app.
 
 on:
   push:
-    branches: [ "feat/add-ci" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "feat/add-ci" ]
+    branches: [ "main" ]
 
 jobs:
   build:
