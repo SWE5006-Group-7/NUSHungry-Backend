@@ -7,7 +7,7 @@
 # documentation.
 
 name: CI Pipeline to compile, test and build app.
-
+#test
 on:
   push:
     branches: [ "main" ]
