@@ -17,7 +17,7 @@ public class CafeteriaControllerTest {
     @Autowired
     private CafeteriaRepository cafeteriaRepository;
 
-    @AfterEach
+    @BeforeEach
     void cleanUp() {
         cafeteriaRepository.deleteAll();
     }

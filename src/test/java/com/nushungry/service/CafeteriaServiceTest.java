@@ -11,11 +11,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CafeteriaServiceTest {
     @Autowired
     private CafeteriaService cafeteriaService;
-
-    @Test
-    void contextLoads() throws Exception {
-        assertThat(cafeteriaService).isNotNull();
-    }
     @Test
     void saveCafeteria() throws Exception {
         Cafeteria cafeteria = new Cafeteria();
