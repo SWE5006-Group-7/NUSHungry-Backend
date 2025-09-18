@@ -9,7 +9,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class CafeteriaControllerTest {
+public class CafeteriaControllerIntegrationTest {
 
     @Autowired
     private WebTestClient webTestClient;
