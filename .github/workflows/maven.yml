@@ -9,10 +9,9 @@
 name: CI Pipeline to build and test app
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "feat/ci" ]
   pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches: [ "feat/ci" ]
 
 jobs:
   build:
