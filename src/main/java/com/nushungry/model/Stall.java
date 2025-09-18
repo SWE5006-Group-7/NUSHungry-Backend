@@ -16,13 +16,16 @@ public class Stall {
     private Long id;
 
     private String name;
-    private String cuisineType; // e.g., "Chinese", "Western", "Indian"
 
+    @Column(name = "cuisine_type")
+    private String cuisineType;
+
+    @Column(name = "image_url")
     private String imageUrl;
+
+    @Column(name = "halal_info")
     private String halalInfo;
-    private String termTimeOpeningHours;
-    private String vacationOpeningHours;
-    private Integer seatingCapacity;
+
     private String contact;
 
     @ManyToOne(fetch = FetchType.LAZY)
