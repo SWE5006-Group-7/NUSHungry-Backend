@@ -29,6 +29,6 @@ jobs:
     - name: Prepare test db
       run: docker run -d --name nushungry-mysql -e MYSQL_ROOT_PASSWORD=your_password -e MYSQL_DATABASE=nushungry_db -p 3306:3306 mysql:8.0
     - name: Test and build application
-      run: mvn -B package --file pom.xml
+      run: mvn test
     - name: Teardown
       run: docker rm -f nushungry-mysql
