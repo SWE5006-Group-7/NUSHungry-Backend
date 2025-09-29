@@ -23,6 +23,9 @@ public class CafeteriaService {
     }
 
     public Cafeteria save(Cafeteria cafeteria) {
+        if (cafeteria == null) {
+            throw new IllegalArgumentException("Cafeteria must not be null");
+        }
         return cafeteriaRepository.save(cafeteria);
     }
 

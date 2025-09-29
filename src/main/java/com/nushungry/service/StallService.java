@@ -23,7 +23,11 @@ public class StallService {
     }
 
     public Stall save(Stall stall) {
+        if (stall == null) {
+            throw new IllegalArgumentException("Stall must not be null");
+        }
         return stallRepository.save(stall);
     }
+
 
 }

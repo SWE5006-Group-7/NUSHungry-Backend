@@ -225,11 +225,83 @@ CREATE TABLE `stall` (
 -- Dumping data for table `stall`
 --
 
+
 LOCK TABLES `stall` WRITE;
 /*!40000 ALTER TABLE `stall` DISABLE KEYS */;
+INSERT INTO `stall` VALUES (
+                               1,
+                               'N/A',
+                               'Taiwanese cuisine',
+                               'HALAL FOOD OPTIONS AVAILABLE',
+                               'https://www.taiwanichiban.com//image/cache/catalog/social/slider1-1920x800.jpg',
+                               'Taiwan Ichiban',
+                               4
+                           );
+
+INSERT INTO `stall` VALUES (
+                               2,
+                               'N/A',
+                               'Chinese cuisine',
+                               'HALAL FOOD OPTIONS AVAILABLE',
+                               'https://www.shicheng.news/images/image/1720/17206176.avif?1682420429',
+                               'Chinese',
+                               4
+                           );
+
+INSERT INTO `stall` VALUES (
+                               3,
+                               'N/A',
+                               'Pasta and Western cuisine',
+                               'HALAL FOOD OPTIONS AVAILABLE',
+                               'https://i0.wp.com/shopsinsg.com/wp-content/uploads/2020/10/build-your-own-pasta.jpg?w=560&ssl=1',
+                               'Pasta Express',
+                               4
+                           );
+
+INSERT INTO `stall` VALUES (
+                               4,
+                               'N/A',
+                               'Vegetarian cuisine',
+                               'HALAL FOOD OPTIONS AVAILABLE',
+                               'https://food-cms.grab.com/compressed_webp/merchants/4-C263REEVRJ2YNT/hero/b0183d8d0f9e47fe9e2583c52a558ddf_1641779012807417776.webp',
+                               'Ruyi Yuan Vegetarian',
+                               4
+                           );
+
+
+INSERT INTO `stall` VALUES (
+                               5,
+                               'N/A',
+                               'Yong Tao Foo',
+                               'HALAL FOOD OPTIONS AVAILABLE',
+                               'https://www.shicheng.news/images/image/1720/17206190.avif?1682420423',
+                               'Yong Tao Foo',
+                               4
+                           );
+
+
+INSERT INTO `stall` VALUES (
+                               6,
+                               'N/A',
+                               'Western cuisine',
+                               'HALAL FOOD OPTIONS AVAILABLE',
+                               'https://scontent.fsin14-1.fna.fbcdn.net/v/t39.30808-6/481079656_944403831193045_946033071545871075_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=127cfc&_nc_ohc=sJ1hi8uBELQQ7kNvwGXR15R&_nc_oc=Adl6g8Zj6XN3ZTT-XnQ3oKg-DzOqNFtcqjpP7JpMT5DPhdmWRQgVjG5VlFlXXQSHrrc&_nc_zt=23&_nc_ht=scontent.fsin14-1.fna&_nc_gid=lsFOzyKp7WEhQIJ6BrtugA&oh=00_AfZG0alde4WUj8z6GHbKgqhf71CA1oTjAHzO7ArQMlbxZA&oe=68E0004E',
+                               'Western Crave',
+                               4
+                           );
 /*
-INSERT INTO `stall` VALUES (1,NULL,NULL,'(MUSLIM OWNED)','https://uci.nus.edu.sg/wp-content/uploads/2024/02/Briyani-1024x660-1-931x600.jpg','Bismillah Biryani',NULL,'Mon-Fri: 11.30am - 7.30pm, Sat: 11.30am - 5.00pm','Mon-Fri: 11.30am - 7.30pm, Sat: 11.30am - 5.00pm',1),(2,NULL,NULL,'(HALAL FOOD OPTIONS AVAILABLE)','https://uci.nus.edu.sg/wp-content/uploads/2024/02/Fine-Food-1-1024x684-1-898x600.jpg','Fine Food',410,'Mon-Sun, 8.00am-8.30pm','Mon-Sun, 8.00am-8.30pm',1),(3,NULL,NULL,'(HALAL FOOD OPTIONS AVAILABLE)','https://uci.nus.edu.sg/wp-content/uploads/2025/08/Flavours-938x600.jpg','Flavours @ UTown',700,'Mon-Sun: 7.30am to 8.30pm','Mon-Sun: 7.30am to 8.30pm',1),(4,'9833 0603',NULL,NULL,'https://uci.nus.edu.sg/wp-content/uploads/2024/02/Hwangs-UTown-1024x684-1-898x600.jpg','Hwang鈥檚 Korean Restaurant',114,'Mon-Sat, 10.30am-9.00pm','Mon-Sat, 10.30am-9.00pm',1),(5,NULL,NULL,NULL,'https://uci.nus.edu.sg/wp-content/uploads/2024/11/Jollibee-2-938x588.jpg','Jollibee',NULL,'9 am to 9 pm daily','9 am to 9 pm daily',1),(6,NULL,NULL,NULL,'https://uci.nus.edu.sg/wp-content/uploads/2024/08/Lixin-840x600.jpg','LiXin',40,'Mon-Sun, 10.30am-9.30pm','Mon-Sun, 10.30am-9.30pm',1),(7,NULL,NULL,'(HALAL CERTIFIED)','https://uci.nus.edu.sg/wp-content/uploads/2024/02/Bean-2-1024x660-1-931x600.jpg','Mr Bean / Do Qoo',NULL,'Mon-Fri 7.30am - 9.00pm, Sat-Sat & PH 8.30am - 7.30pm','Mon-Fri, 8.30am - 7.30pm',1),(8,'6910 1127',NULL,NULL,'https://uci.nus.edu.sg/wp-content/uploads/2024/02/Starbucks-UTown-1024x684-1-898x600.jpg','Starbucks',330,'Daily 24/7','Daily 7.30am to 9.00pm',1),(9,NULL,NULL,'(HALAL CERTIFIED)','https://uci.nus.edu.sg/wp-content/uploads/2024/02/Subway-1024x768-1-800x600.jpg','Subway',15,'Mon-Sun, 8.30am to 9.30pm','Mon-Sun, 8.30am to 9.30pm',1),(10,NULL,NULL,'(PENDING HALAL CERTIFICATION)','https://uci.nus.edu.sg/wp-content/uploads/2024/02/Supersnacks-Edited-1024x684-1-898x600.jpg','Supersnacks',NULL,'Mon-Fri, 11.00am-2.00am, Sat/Sun/PH, 6.00pm-2.00am',NULL,1),(11,'97771353',NULL,'(HALAL CERTIFIED)','https://uci.nus.edu.sg/wp-content/uploads/2024/02/The-Royals-Cafe-1024x684-1-898x600.jpg','The Royals Bistro',60,'Mon-Sat, 11.00am-8.00pm','Mon-Sat, 11.00am-8.00pm',1),(12,NULL,NULL,'(HALAL CERTIFICATION)','https://uci.nus.edu.sg/wp-content/uploads/2024/02/Triplets-1024x768-1-800x600.jpg','Triplets',8,'Mon-Sun: 9.00am to 9.00pm','Mon-Sun: 9.00am to 9.00pm',1),(13,'66946240',NULL,NULL,'https://uci.nus.edu.sg/wp-content/uploads/2024/02/Udon-1024x689-1-892x600.jpg','Udon Don Bar',NULL,'Mon-Sun: 11.00am-9.30pm','Mon-Sun: 11.00am-9.00pm',1),(14,'82230550',NULL,NULL,'https://uci.nus.edu.sg/wp-content/uploads/2024/02/Waa-Cow-1-1024x684-1-898x600.jpg','Waa Cow',NULL,'Mon-Fri, 11.30am-8.30pm, Sat/Sun/PH, 12.00pm-8.30pm','Mon-Fri, 11.30am-8.30pm, Sat/Sun/PH, 12.00pm-8.30pm',1);
+ This is a default stall to be updated later for other cafeterias without stalls.
  */
+INSERT INTO `stall` VALUES (
+                               7,
+                               'N/A',
+                               'Default',
+                               'HALAL FOOD OPTIONS AVAILABLE',
+                               'https://th.bing.com/th/id/OIP.swinVrT6m0hoTGPwblccPgHaHa?w=192&h=193&c=7&r=0&o=5&dpr=2.4&pid=1.7',
+                               'Default',
+                               1
+                           );
+
 /*!40000 ALTER TABLE `stall` ENABLE KEYS */;
 
 UNLOCK TABLES;
