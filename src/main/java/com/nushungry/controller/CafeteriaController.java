@@ -1,6 +1,7 @@
 package com.nushungry.controller;
 
 import com.nushungry.model.Cafeteria;
+import com.nushungry.model.Stall;
 import com.nushungry.model.CafeteriaDetailDTO;
 import com.nushungry.service.CafeteriaService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,7 @@ public class CafeteriaController {
     public ResponseEntity<CafeteriaDetailDTO> getCafeteriaById(@PathVariable Long id) {
         return cafeteriaService.findById(id)
                 .map(cafeteria -> {
+                    List<Stall> stalls = cafeteriaService.findStallsByCafeteriaId(id);
                     CafeteriaDetailDTO dto = new CafeteriaDetailDTO(
                         cafeteria.getId(),
                         cafeteria.getName(),
@@ -43,6 +45,7 @@ public class CafeteriaController {
                         cafeteria.getHalalInfo(),
                         cafeteria.getSeatingCapacity()
                     );
+                    dto.setStalls(stalls);
                     return ResponseEntity.ok(dto);
                 })
                 .orElse(ResponseEntity.notFound().build());

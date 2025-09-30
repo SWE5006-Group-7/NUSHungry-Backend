@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface StallRepository extends JpaRepository<Stall, Long> {
 
+    List<Stall> findByCafeteriaId(Long cafeteriaId);
 }

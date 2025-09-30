@@ -1,7 +1,9 @@
 package com.nushungry.service;
 
 import com.nushungry.model.Cafeteria;
+import com.nushungry.model.Stall;
 import com.nushungry.repository.CafeteriaRepository;
+import com.nushungry.repository.StallRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +15,9 @@ public class CafeteriaService {
 
     @Autowired
     private CafeteriaRepository cafeteriaRepository;
+
+    @Autowired
+    private StallRepository stallRepository;
 
     public List<Cafeteria> findAll() {
         return cafeteriaRepository.findAll();
@@ -31,5 +36,9 @@ public class CafeteriaService {
 
     public List<Cafeteria> findPopularCafeterias() {
         return cafeteriaRepository.findPopularCafeterias();
+    }
+
+    public List<Stall> findStallsByCafeteriaId(Long cafeteriaId) {
+        return stallRepository.findByCafeteriaId(cafeteriaId);
     }
 }

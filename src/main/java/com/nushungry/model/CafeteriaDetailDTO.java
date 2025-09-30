@@ -1,7 +1,10 @@
 package com.nushungry.model;
 
+import java.util.List;
+
 public class CafeteriaDetailDTO {
     private Long id;
+    private List<Stall> stalls;
     private String name;
     private String description;
     private String location;
@@ -33,6 +36,8 @@ public class CafeteriaDetailDTO {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public List<Stall> getStalls() { return stalls; }
+    public void setStalls(List<Stall> stalls) { this.stalls = stalls; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getDescription() { return description; }

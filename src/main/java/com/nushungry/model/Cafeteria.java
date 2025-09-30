@@ -31,4 +31,12 @@ public class Cafeteria {
     @OneToMany(mappedBy = "cafeteria", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Stall> stalls;
+
+    public List<Stall> getStalls() {
+        return stalls;
+    }
+
+    public void setStalls(List<Stall> stalls) {
+        this.stalls = stalls;
+    }
 }

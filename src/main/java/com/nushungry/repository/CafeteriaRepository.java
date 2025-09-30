@@ -12,4 +12,7 @@ public interface CafeteriaRepository extends JpaRepository<Cafeteria, Long> {
 
     @Query("SELECT c FROM Cafeteria c JOIN c.stalls s JOIN s.reviews r GROUP BY c.id ORDER BY AVG(r.rating) DESC")
     List<Cafeteria> findPopularCafeterias();
+
+    @Query("SELECT c FROM Cafeteria c LEFT JOIN FETCH c.stalls WHERE c.id = :id")
+    Optional<Cafeteria> findByIdWithStalls(@Param("id") Long id);
 }
