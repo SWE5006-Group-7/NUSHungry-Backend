@@ -2,8 +2,10 @@ package com.nushungry.service;
 
 import com.nushungry.model.Favorite;
 import com.nushungry.model.Stall;
+import com.nushungry.model.User;
 import com.nushungry.repository.FavoriteRepository;
 import com.nushungry.repository.StallRepository;
+import com.nushungry.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,15 +17,20 @@ public class FavoriteService {
 
     private final FavoriteRepository favoriteRepository;
     private final StallRepository stallRepository;
+    private final UserRepository userRepository;
 
-    public FavoriteService(FavoriteRepository favoriteRepository, StallRepository stallRepository) {
+    public FavoriteService(FavoriteRepository favoriteRepository, StallRepository stallRepository, UserRepository userRepository) {
         this.favoriteRepository = favoriteRepository;
         this.stallRepository = stallRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional
     public Favorite addFavorite(String userId, Long stallId) {
-        if (favoriteRepository.existsByUserIdAndStallId(userId, stallId)) {
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (favoriteRepository.existsByUserAndStallId(user, stallId)) {
             throw new RuntimeException("Stall is already in favorites");
         }
 
@@ -31,7 +38,7 @@ public class FavoriteService {
                 .orElseThrow(() -> new RuntimeException("Stall not found"));
 
         Favorite favorite = new Favorite();
-        favorite.setUserId(userId);
+        favorite.setUser(user);
         favorite.setStall(stall);
 
         return favoriteRepository.save(favorite);
@@ -39,17 +46,23 @@ public class FavoriteService {
 
     @Transactional
     public void removeFavorite(String userId, Long stallId) {
-        favoriteRepository.deleteByUserIdAndStallId(userId, stallId);
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        favoriteRepository.deleteByUserAndStallId(user, stallId);
     }
 
     public List<Stall> getUserFavorites(String userId) {
-        return favoriteRepository.findByUserId(userId)
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return favoriteRepository.findByUser(user)
                 .stream()
                 .map(Favorite::getStall)
                 .collect(Collectors.toList());
     }
 
     public boolean isFavorite(String userId, Long stallId) {
-        return favoriteRepository.existsByUserIdAndStallId(userId, stallId);
+        User user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return favoriteRepository.existsByUserAndStallId(user, stallId);
     }
 }
