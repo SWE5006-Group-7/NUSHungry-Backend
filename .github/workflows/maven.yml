@@ -7,7 +7,7 @@ on:
     branches: ["feat/add-lint-and-sast-scans"]
 
 env:
-  REGISTRY: ${{secrets.REGISTRY}}
+  REGISTRY: ${{ secrets.REGISTRY }}
   IMAGE_NAME: nushungry/monolith-backend
   SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
 
