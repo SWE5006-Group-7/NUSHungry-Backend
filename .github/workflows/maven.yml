@@ -80,6 +80,7 @@ jobs:
     needs: ["run-tests", "lint-and-sast"]
     runs-on: ubuntu-latest
     environment: dev
+    if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-docker-action@v4
