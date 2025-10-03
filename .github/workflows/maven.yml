@@ -2,9 +2,9 @@ name: CI/CD Pipeline to compile, test and build app.
 
 on:
   push:
-    branches: ["feat/add-lint-and-sast-scans"]
+    branches: ["main"]
   pull_request:
-    branches: ["feat/add-lint-and-sast-scans"]
+    branches: ["main"]
 
 env:
   REGISTRY: ${{ secrets.REGISTRY }}
