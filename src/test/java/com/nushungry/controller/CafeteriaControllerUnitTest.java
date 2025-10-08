@@ -1,5 +1,6 @@
 package com.nushungry.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nushungry.model.Cafeteria;
 import com.nushungry.service.CafeteriaService;
 import com.nushungry.service.ImageService;
@@ -9,6 +10,7 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
@@ -17,7 +19,7 @@ import java.util.Optional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-@WebMvcTest(value = CafeteriaController.class, excludeAutoConfiguration = {org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class})
+@WebMvcTest(CafeteriaController.class)
 class CafeteriaControllerUnitTest {
 
     @Autowired
@@ -31,6 +33,12 @@ class CafeteriaControllerUnitTest {
 
     @MockBean
     private JwtUtil jwtUtil;
+
+    @MockBean
+    private UserDetailsService userDetailsService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     void testGetAllCafeterias_single() throws Exception {
