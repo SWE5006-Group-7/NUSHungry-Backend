@@ -22,10 +22,10 @@ public class FavoriteController {
 
     @PostMapping
     public ResponseEntity<Favorite> addFavorite(@RequestBody Map<String, Object> request) {
-        String userId = (String) request.get("userId");
+        Long userId = Long.valueOf(request.get("userId").toString());
         Long stallId = Long.valueOf(request.get("stallId").toString());
 
-        Favorite favorite = favoriteService.addFavorite(userId, stallId);
+        Favorite favorite = favoriteService.addFavorite(userId.toString(), stallId);
         return ResponseEntity.ok(favorite);
     }
 

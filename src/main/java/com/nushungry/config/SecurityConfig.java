@@ -37,11 +37,11 @@ public class SecurityConfig {
                                 "/api/stalls/**",
                                 "/api/reviews/**",
                                 "/api/images/**",
-                                "/api/favorites/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers("/api/favorites/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
