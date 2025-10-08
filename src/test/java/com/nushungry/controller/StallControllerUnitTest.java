@@ -3,6 +3,7 @@ package com.nushungry.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nushungry.model.Stall;
 import com.nushungry.service.StallService;
+import com.nushungry.service.ImageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
@@ -33,6 +34,9 @@ class StallControllerUnitTest {
 
     @MockBean
     private StallService stallService;
+
+    @MockBean
+    private ImageService imageService;
 
     @Autowired
     private ObjectMapper objectMapper;

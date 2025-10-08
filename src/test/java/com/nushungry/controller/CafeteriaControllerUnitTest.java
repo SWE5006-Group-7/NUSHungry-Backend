@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import com.nushungry.model.Cafeteria;
 import com.nushungry.service.CafeteriaService;
+import com.nushungry.service.ImageService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -25,6 +26,9 @@ class CafeteriaControllerUnitTest {
 
     @MockBean
     private CafeteriaService cafeteriaService;
+
+    @MockBean
+    private ImageService imageService;
 
     @Test
     void testGetAllCafeterias_single() throws Exception {
