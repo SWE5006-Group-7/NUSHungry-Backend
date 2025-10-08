@@ -1,13 +1,12 @@
 package com.nushungry.controller;
 
 import com.nushungry.model.Cafeteria;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import com.nushungry.model.Cafeteria;
 import com.nushungry.service.CafeteriaService;
 import com.nushungry.service.ImageService;
+import com.nushungry.util.JwtUtil;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,6 +28,9 @@ class CafeteriaControllerUnitTest {
 
     @MockBean
     private ImageService imageService;
+
+    @MockBean
+    private JwtUtil jwtUtil;
 
     @Test
     void testGetAllCafeterias_single() throws Exception {
