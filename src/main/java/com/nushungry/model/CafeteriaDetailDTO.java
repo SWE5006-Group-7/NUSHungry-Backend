@@ -1,6 +1,7 @@
 package com.nushungry.model;
 
 import java.util.List;
+import java.util.Set;
 
 public class CafeteriaDetailDTO {
     private Long id;
@@ -17,6 +18,8 @@ public class CafeteriaDetailDTO {
     private String nearestCarpark;
     private String halalInfo;
     private Integer seatingCapacity;
+    private Set<String> cuisineTags; // 从 Stall 聚合的标签
+    private List<Image> images; // 图片列表
 
     public CafeteriaDetailDTO(Long id, String name, String description, String location, Double latitude, Double longitude, String imageUrl, String termTimeOpeningHours, String vacationOpeningHours, String nearestBusStop, String nearestCarpark, String halalInfo, Integer seatingCapacity) {
         this.id = id;
@@ -62,4 +65,8 @@ public class CafeteriaDetailDTO {
     public void setHalalInfo(String halalInfo) { this.halalInfo = halalInfo; }
     public Integer getSeatingCapacity() { return seatingCapacity; }
     public void setSeatingCapacity(Integer seatingCapacity) { this.seatingCapacity = seatingCapacity; }
+    public Set<String> getCuisineTags() { return cuisineTags; }
+    public void setCuisineTags(Set<String> cuisineTags) { this.cuisineTags = cuisineTags; }
+    public List<Image> getImages() { return images; }
+    public void setImages(List<Image> images) { this.images = images; }
 }

@@ -30,3 +30,7 @@ target/
 .idea/
 *.iml
 .vscode/
+
+#local picture
+*.png
+*.jpg

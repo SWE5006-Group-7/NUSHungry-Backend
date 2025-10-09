@@ -3,6 +3,8 @@ package com.nushungry.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nushungry.model.Stall;
 import com.nushungry.service.StallService;
+import com.nushungry.service.ImageService;
+import com.nushungry.util.JwtUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
@@ -11,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,6 +36,18 @@ class StallControllerUnitTest {
 
     @MockBean
     private StallService stallService;
+
+    @MockBean
+    private ImageService imageService;
+
+    @MockBean
+    private JwtUtil jwtUtil;
+
+    @MockBean
+    private UserDetailsService userDetailsService;
+
+    @MockBean
+    private com.nushungry.service.UserService userService;
 
     @Autowired
     private ObjectMapper objectMapper;

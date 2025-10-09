@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class CafeteriaService {
@@ -40,5 +42,16 @@ public class CafeteriaService {
 
     public List<Stall> findStallsByCafeteriaId(Long cafeteriaId) {
         return stallRepository.findByCafeteriaId(cafeteriaId);
+    }
+
+    /**
+     * 从 Cafeteria 下的所有 Stall 中聚合菜系标签
+     */
+    public Set<String> aggregateCuisineTags(Long cafeteriaId) {
+        List<Stall> stalls = stallRepository.findByCafeteriaId(cafeteriaId);
+        return stalls.stream()
+                .map(Stall::getCuisineType)
+                .filter(cuisineType -> cuisineType != null && !cuisineType.isEmpty())
+                .collect(Collectors.toSet());
     }
 }

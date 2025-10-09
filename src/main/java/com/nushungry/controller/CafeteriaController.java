@@ -4,6 +4,7 @@ import com.nushungry.model.Cafeteria;
 import com.nushungry.model.Stall;
 import com.nushungry.model.CafeteriaDetailDTO;
 import com.nushungry.service.CafeteriaService;
+import com.nushungry.service.ImageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,9 @@ public class CafeteriaController {
 
     @Autowired
     private CafeteriaService cafeteriaService;
+
+    @Autowired
+    private ImageService imageService;
 
     @GetMapping
     public List<Cafeteria> getAllCafeterias() {
@@ -46,6 +50,10 @@ public class CafeteriaController {
                         cafeteria.getSeatingCapacity()
                     );
                     dto.setStalls(stalls);
+                    // 聚合菜系标签
+                    dto.setCuisineTags(cafeteriaService.aggregateCuisineTags(id));
+                    // 添加图片列表
+                    dto.setImages(imageService.getCafeteriaImages(id));
                     return ResponseEntity.ok(dto);
                 })
                 .orElse(ResponseEntity.notFound().build());

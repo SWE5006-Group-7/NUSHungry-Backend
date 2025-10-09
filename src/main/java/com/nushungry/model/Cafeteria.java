@@ -1,5 +1,6 @@
 package com.nushungry.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -7,6 +8,7 @@ import java.util.List;
 
 @Data
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Cafeteria {
 
     @Id
@@ -31,6 +33,10 @@ public class Cafeteria {
     @OneToMany(mappedBy = "cafeteria", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<Stall> stalls;
+
+    @OneToMany(mappedBy = "cafeteria", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference("cafeteria-images")
+    private List<Image> images;
 
     public List<Stall> getStalls() {
         return stalls;
