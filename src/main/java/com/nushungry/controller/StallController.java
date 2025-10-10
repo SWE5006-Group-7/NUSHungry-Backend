@@ -8,7 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/stalls")
@@ -21,8 +24,37 @@ public class StallController {
     private ImageService imageService;
 
     @GetMapping
-    public List<Stall> getAllStalls() {
-        return stallService.findAll();
+    public List<Map<String, Object>> getAllStalls() {
+        List<Stall> stalls = stallService.findAll();
+        // 手动构建包含cafeteria信息的响应，解决@JsonBackReference序列化问题
+        return stalls.stream().map(stall -> {
+            Map<String, Object> stallData = new HashMap<>();
+            stallData.put("id", stall.getId());
+            stallData.put("name", stall.getName());
+            stallData.put("cuisineType", stall.getCuisineType());
+            stallData.put("cuisine", stall.getCuisineType()); // 前端使用cuisine字段
+            stallData.put("imageUrl", stall.getImageUrl());
+            stallData.put("halalInfo", stall.getHalalInfo());
+            stallData.put("halal", stall.getHalalInfo() != null && !stall.getHalalInfo().isEmpty());
+            stallData.put("contact", stall.getContact());
+            stallData.put("averageRating", stall.getAverageRating());
+            stallData.put("reviewCount", stall.getReviewCount());
+
+            // 添加cafeteria信息
+            if (stall.getCafeteria() != null) {
+                Map<String, Object> cafeteriaData = new HashMap<>();
+                cafeteriaData.put("id", stall.getCafeteria().getId());
+                cafeteriaData.put("name", stall.getCafeteria().getName());
+                cafeteriaData.put("location", stall.getCafeteria().getLocation());
+                stallData.put("cafeteria", cafeteriaData);
+                stallData.put("cafeteriaName", stall.getCafeteria().getName()); // 前端使用cafeteriaName字段
+            } else {
+                stallData.put("cafeteria", null);
+                stallData.put("cafeteriaName", null);
+            }
+
+            return stallData;
+        }).collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")

@@ -24,7 +24,7 @@ import java.util.Map;
 @RequestMapping("/api/admin/reviews")
 @RequiredArgsConstructor
 @Tag(name = "管理员评价审核", description = "管理员评价内容审核相关接口")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class AdminReviewController {
 
     private final ModerationService moderationService;

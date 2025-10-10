@@ -30,7 +30,7 @@ import java.util.*;
 @RequiredArgsConstructor
 @Tag(name = "Admin Cafeteria Management", description = "管理员食堂管理接口")
 @SecurityRequirement(name = "Bearer Authentication")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class AdminCafeteriaController {
 
     private final CafeteriaService cafeteriaService;

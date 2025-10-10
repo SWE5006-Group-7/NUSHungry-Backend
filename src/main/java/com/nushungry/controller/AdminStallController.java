@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -31,7 +30,7 @@ import java.util.*;
 @RequiredArgsConstructor
 @Tag(name = "Admin Stall Management", description = "管理员摊位管理接口")
 @SecurityRequirement(name = "Bearer Authentication")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class AdminStallController {
 
     private final StallService stallService;
@@ -43,7 +42,7 @@ public class AdminStallController {
     @PostMapping
     @Operation(summary = "创建摊位", description = "创建新的摊位信息")
     public ResponseEntity<Map<String, Object>> createStall(
-            @Valid @RequestBody Map<String, Object> requestBody) {
+            @RequestBody Map<String, Object> requestBody) {
         try {
             log.info("管理员创建新摊位: {}", requestBody.get("name"));
 
@@ -75,10 +74,13 @@ public class AdminStallController {
             // 保存摊位信息
             Stall savedStall = stallService.save(stall);
 
+            // 使用辅助方法构建包含cafeteria信息的响应
+            Map<String, Object> stallData = buildStallResponse(savedStall);
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "摊位创建成功");
-            response.put("stall", savedStall);
+            response.put("stall", stallData);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
@@ -105,7 +107,7 @@ public class AdminStallController {
     @Operation(summary = "更新摊位信息", description = "更新指定ID的摊位信息")
     public ResponseEntity<Map<String, Object>> updateStall(
             @Parameter(description = "摊位ID") @PathVariable Long id,
-            @Valid @RequestBody Map<String, Object> requestBody) {
+            @RequestBody Map<String, Object> requestBody) {
         try {
             log.info("管理员更新摊位: ID={}, 名称={}", id, requestBody.get("name"));
 
@@ -160,10 +162,13 @@ public class AdminStallController {
 
             Stall updatedStall = stallService.save(stall);
 
+            // 使用辅助方法构建包含cafeteria信息的响应
+            Map<String, Object> stallData = buildStallResponse(updatedStall);
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "摊位更新成功");
-            response.put("stall", updatedStall);
+            response.put("stall", stallData);
 
             return ResponseEntity.ok(response);
 
@@ -273,10 +278,14 @@ public class AdminStallController {
             int start = page * size;
             int end = Math.min(start + size, stalls.size());
             List<Stall> pagedStalls = stalls.subList(start, end);
+            // 使用buildStallResponse构建包含cafeteria信息的响应列表
+            List<Map<String, Object>> stallDataList = pagedStalls.stream()
+                .map(this::buildStallResponse)
+                .collect(java.util.stream.Collectors.toList());
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("stalls", pagedStalls);
+            response.put("stalls", stallDataList);
             response.put("totalItems", stalls.size());
             response.put("currentPage", page);
             response.put("pageSize", size);
@@ -310,9 +319,12 @@ public class AdminStallController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
             }
 
+            // 使用辅助方法构建包含cafeteria信息的响应
+            Map<String, Object> stallData = buildStallResponse(stall.get());
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("stall", stall.get());
+            response.put("stall", stallData);
 
             return ResponseEntity.ok(response);
 
@@ -366,5 +378,38 @@ public class AdminStallController {
             error.put("message", "服务器内部错误: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
+    }
+
+    /**
+     * 构建包含cafeteria信息的stall响应对象
+     * 解决@JsonBackReference导致的cafeteria字段不被序列化的问题
+     */
+    private Map<String, Object> buildStallResponse(Stall stall) {
+        Map<String, Object> stallData = new HashMap<>();
+        stallData.put("id", stall.getId());
+        stallData.put("name", stall.getName());
+        stallData.put("cuisineType", stall.getCuisineType());
+        stallData.put("halalInfo", stall.getHalalInfo());
+        stallData.put("contact", stall.getContact());
+        stallData.put("imageUrl", stall.getImageUrl());
+        stallData.put("averageRating", stall.getAverageRating());
+        stallData.put("reviewCount", stall.getReviewCount());
+        stallData.put("createdAt", stall.getCreatedAt());
+        stallData.put("updatedAt", stall.getUpdatedAt());
+
+        // 手动添加cafeteria信息（避免@JsonBackReference导致的序列化问题）
+        if (stall.getCafeteria() != null) {
+            Map<String, Object> cafeteriaData = new HashMap<>();
+            cafeteriaData.put("id", stall.getCafeteria().getId());
+            cafeteriaData.put("name", stall.getCafeteria().getName());
+            cafeteriaData.put("location", stall.getCafeteria().getLocation());
+            stallData.put("cafeteria", cafeteriaData);
+            stallData.put("cafeteriaId", stall.getCafeteria().getId());
+        } else {
+            stallData.put("cafeteria", null);
+            stallData.put("cafeteriaId", null);
+        }
+
+        return stallData;
     }
 }
