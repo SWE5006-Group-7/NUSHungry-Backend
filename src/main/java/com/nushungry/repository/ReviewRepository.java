@@ -1,5 +1,6 @@
 package com.nushungry.repository;
 
+import com.nushungry.model.ModerationStatus;
 import com.nushungry.model.Review;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -101,4 +102,31 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
      * 获取用户的最新评价（限制数量）
      */
     List<Review> findTop10ByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // ==================== 审核相关查询 ====================
+
+    /**
+     * 根据审核状态分页查询评价
+     */
+    Page<Review> findByModerationStatus(ModerationStatus moderationStatus, Pageable pageable);
+
+    /**
+     * 统计不同审核状态的评价数量
+     */
+    long countByModerationStatus(ModerationStatus moderationStatus);
+
+    /**
+     * 查询指定时间范围内待审核的评价
+     */
+    Page<Review> findByModerationStatusAndCreatedAtBetween(
+            ModerationStatus moderationStatus,
+            LocalDateTime start,
+            LocalDateTime end,
+            Pageable pageable
+    );
+
+    /**
+     * 获取最新的待审核评价
+     */
+    List<Review> findTop10ByModerationStatusOrderByCreatedAtDesc(ModerationStatus moderationStatus);
 }

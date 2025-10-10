@@ -33,6 +33,19 @@ public class Review {
     @Column(columnDefinition = "boolean default false")
     private boolean processed = false; // For tracking if a complaint/low rating has been handled
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "moderation_status", nullable = false)
+    private ModerationStatus moderationStatus = ModerationStatus.PENDING; // 审核状态
+
+    @Column(name = "reject_reason")
+    private String rejectReason; // 驳回原因
+
+    @Column(name = "moderated_at")
+    private LocalDateTime moderatedAt; // 审核时间
+
+    @Column(name = "moderated_by")
+    private String moderatedBy; // 审核人(管理员用户名)
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
