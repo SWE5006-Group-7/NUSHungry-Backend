@@ -20,10 +20,26 @@ public class Review {
     private String author; // Username for backward compatibility
 
     @Column(nullable = false)
-    private Double rating; // 1.0 to 5.0 (allows half stars)
+    private Double rating; // 1.0 to 5.0 (allows half stars) - 总体评分
+
+    // 多维度评分 (可选，如果提供则计算平均值作为rating)
+    @Column(name = "taste_rating")
+    private Double tasteRating; // 口味评分 1.0-5.0
+
+    @Column(name = "environment_rating")
+    private Double environmentRating; // 环境评分 1.0-5.0
+
+    @Column(name = "service_rating")
+    private Double serviceRating; // 服务评分 1.0-5.0
+
+    @Column(name = "value_rating")
+    private Double valueRating; // 性价比评分 1.0-5.0
 
     @Column(columnDefinition = "TEXT")
     private String comment; // 评价内容
+
+    @Column(name = "like_count", nullable = false, columnDefinition = "integer default 0")
+    private Integer likeCount = 0; // 点赞数
 
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "review_images", joinColumns = @JoinColumn(name = "review_id"))

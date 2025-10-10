@@ -15,6 +15,23 @@ public class UpdateReviewRequest {
     @DecimalMax(value = "5.0", message = "评分必须在1到5之间")
     private Double rating;
 
+    // 多维度评分（可选）
+    @DecimalMin(value = "1.0", message = "口味评分必须在1到5之间")
+    @DecimalMax(value = "5.0", message = "口味评分必须在1到5之间")
+    private Double tasteRating;
+
+    @DecimalMin(value = "1.0", message = "环境评分必须在1到5之间")
+    @DecimalMax(value = "5.0", message = "环境评分必须在1到5之间")
+    private Double environmentRating;
+
+    @DecimalMin(value = "1.0", message = "服务评分必须在1到5之间")
+    @DecimalMax(value = "5.0", message = "服务评分必须在1到5之间")
+    private Double serviceRating;
+
+    @DecimalMin(value = "1.0", message = "性价比评分必须在1到5之间")
+    @DecimalMax(value = "5.0", message = "性价比评分必须在1到5之间")
+    private Double valueRating;
+
     @NotBlank(message = "评价内容不能为空")
     @Size(min = 10, max = 1000, message = "评价内容长度必须在10到1000个字符之间")
     private String comment;

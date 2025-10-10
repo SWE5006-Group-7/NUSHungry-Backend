@@ -2,8 +2,8 @@ package com.nushungry.service;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -15,12 +15,22 @@ import org.thymeleaf.context.Context;
  * 邮件服务
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
+
+    public EmailService(
+            @Autowired(required = false) JavaMailSender mailSender,
+            TemplateEngine templateEngine
+    ) {
+        this.mailSender = mailSender;
+        this.templateEngine = templateEngine;
+        if (mailSender == null) {
+            log.warn("JavaMailSender未配置,邮件功能将不可用");
+        }
+    }
 
     /**
      * 发送简单文本邮件
@@ -30,6 +40,10 @@ public class EmailService {
      * @param text 内容
      */
     public void sendSimpleEmail(String to, String subject, String text) {
+        if (mailSender == null) {
+            log.error("JavaMailSender未配置,无法发送邮件");
+            throw new RuntimeException("邮件服务未配置");
+        }
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(to);
@@ -51,6 +65,10 @@ public class EmailService {
      * @param htmlContent HTML内容
      */
     public void sendHtmlEmail(String to, String subject, String htmlContent) {
+        if (mailSender == null) {
+            log.error("JavaMailSender未配置,无法发送邮件");
+            throw new RuntimeException("邮件服务未配置");
+        }
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");

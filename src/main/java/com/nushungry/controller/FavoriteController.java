@@ -46,4 +46,39 @@ public class FavoriteController {
         boolean isFavorite = favoriteService.isFavorite(userId, stallId);
         return ResponseEntity.ok(Map.of("isFavorite", isFavorite));
     }
+
+    /**
+     * 获取用户收藏列表（包含完整Favorite信息）
+     */
+    @GetMapping("/user/{userId}/full")
+    public ResponseEntity<List<Favorite>> getUserFavoritesFull(@PathVariable String userId) {
+        List<Favorite> favorites = favoriteService.getUserFavoritesFull(userId);
+        return ResponseEntity.ok(favorites);
+    }
+
+    /**
+     * 批量删除收藏
+     */
+    @DeleteMapping("/batch")
+    public ResponseEntity<Void> batchDeleteFavorites(@RequestBody Map<String, Object> request) {
+        String userId = request.get("userId").toString();
+        @SuppressWarnings("unchecked")
+        List<Long> favoriteIds = (List<Long>) request.get("favoriteIds");
+
+        favoriteService.batchDeleteFavorites(userId, favoriteIds);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 批量更新收藏排序
+     */
+    @PutMapping("/reorder")
+    public ResponseEntity<Void> reorderFavorites(@RequestBody Map<String, Object> request) {
+        String userId = request.get("userId").toString();
+        @SuppressWarnings("unchecked")
+        List<Long> favoriteIds = (List<Long>) request.get("favoriteIds");
+
+        favoriteService.batchUpdateFavoriteOrder(userId, favoriteIds);
+        return ResponseEntity.ok().build();
+    }
 }

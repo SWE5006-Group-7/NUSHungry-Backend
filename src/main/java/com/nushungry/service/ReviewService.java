@@ -67,6 +67,26 @@ public class ReviewService {
         review.setComment(request.getComment());
         review.setImageUrls(request.getImageUrls());
 
+        // 设置多维度评分（如果提供）
+        review.setTasteRating(request.getTasteRating());
+        review.setEnvironmentRating(request.getEnvironmentRating());
+        review.setServiceRating(request.getServiceRating());
+        review.setValueRating(request.getValueRating());
+
+        // 如果提供了多维度评分，自动计算平均值作为总体评分
+        if (request.getTasteRating() != null || request.getEnvironmentRating() != null ||
+            request.getServiceRating() != null || request.getValueRating() != null) {
+            double sum = 0;
+            int count = 0;
+            if (request.getTasteRating() != null) { sum += request.getTasteRating(); count++; }
+            if (request.getEnvironmentRating() != null) { sum += request.getEnvironmentRating(); count++; }
+            if (request.getServiceRating() != null) { sum += request.getServiceRating(); count++; }
+            if (request.getValueRating() != null) { sum += request.getValueRating(); count++; }
+            if (count > 0) {
+                review.setRating(sum / count);
+            }
+        }
+
         review = reviewRepository.save(review);
 
         // 重新计算摊位评分
@@ -96,6 +116,26 @@ public class ReviewService {
         review.setComment(request.getComment());
         if (request.getImageUrls() != null) {
             review.setImageUrls(request.getImageUrls());
+        }
+
+        // 更新多维度评分（如果提供）
+        review.setTasteRating(request.getTasteRating());
+        review.setEnvironmentRating(request.getEnvironmentRating());
+        review.setServiceRating(request.getServiceRating());
+        review.setValueRating(request.getValueRating());
+
+        // 如果提供了多维度评分，自动计算平均值作为总体评分
+        if (request.getTasteRating() != null || request.getEnvironmentRating() != null ||
+            request.getServiceRating() != null || request.getValueRating() != null) {
+            double sum = 0;
+            int count = 0;
+            if (request.getTasteRating() != null) { sum += request.getTasteRating(); count++; }
+            if (request.getEnvironmentRating() != null) { sum += request.getEnvironmentRating(); count++; }
+            if (request.getServiceRating() != null) { sum += request.getServiceRating(); count++; }
+            if (request.getValueRating() != null) { sum += request.getValueRating(); count++; }
+            if (count > 0) {
+                review.setRating(sum / count);
+            }
         }
 
         review = reviewRepository.save(review);
@@ -177,6 +217,63 @@ public class ReviewService {
     }
 
     /**
+     * 获取热门评价（基于综合算法）
+     */
+    public Page<ReviewResponse> getHotReviews(Long stallId, Pageable pageable, Long currentUserId) {
+        Page<Review> reviews = reviewRepository.findHotReviewsByStallId(stallId, pageable);
+        return reviews.map(review -> convertToResponse(review, currentUserId));
+    }
+
+    /**
+     * 按评分筛选评价
+     */
+    public Page<ReviewResponse> getReviewsByRating(Long stallId, Double minRating, Double maxRating,
+                                                    Pageable pageable, Long currentUserId) {
+        Page<Review> reviews = reviewRepository.findByStallIdAndRatingBetween(stallId, minRating, maxRating, pageable);
+        return reviews.map(review -> convertToResponse(review, currentUserId));
+    }
+
+    /**
+     * 获取高分评价
+     */
+    public Page<ReviewResponse> getHighRatedReviews(Long stallId, Pageable pageable, Long currentUserId) {
+        Page<Review> reviews = reviewRepository.findHighRatedReviewsByStallId(stallId, pageable);
+        return reviews.map(review -> convertToResponse(review, currentUserId));
+    }
+
+    /**
+     * 获取低分评价
+     */
+    public Page<ReviewResponse> getLowRatedReviews(Long stallId, Pageable pageable, Long currentUserId) {
+        Page<Review> reviews = reviewRepository.findLowRatedReviewsByStallId(stallId, pageable);
+        return reviews.map(review -> convertToResponse(review, currentUserId));
+    }
+
+    /**
+     * 获取有图评价
+     */
+    public Page<ReviewResponse> getReviewsWithImages(Long stallId, Pageable pageable, Long currentUserId) {
+        Page<Review> reviews = reviewRepository.findReviewsWithImagesByStallId(stallId, pageable);
+        return reviews.map(review -> convertToResponse(review, currentUserId));
+    }
+
+    /**
+     * 按点赞数排序
+     */
+    public Page<ReviewResponse> getReviewsByLikes(Long stallId, Pageable pageable, Long currentUserId) {
+        Page<Review> reviews = reviewRepository.findByStallIdOrderByLikeCountDesc(stallId, pageable);
+        return reviews.map(review -> convertToResponse(review, currentUserId));
+    }
+
+    /**
+     * 按评分排序
+     */
+    public Page<ReviewResponse> getReviewsByRating(Long stallId, Pageable pageable, Long currentUserId) {
+        Page<Review> reviews = reviewRepository.findByStallIdOrderByRatingDesc(stallId, pageable);
+        return reviews.map(review -> convertToResponse(review, currentUserId));
+    }
+
+    /**
      * 转换为响应 DTO
      */
     private ReviewResponse convertToResponse(Review review, Long currentUserId) {
@@ -192,6 +289,15 @@ public class ReviewService {
         response.setImageUrls(review.getImageUrls());
         response.setCreatedAt(review.getCreatedAt());
         response.setUpdatedAt(review.getUpdatedAt());
+
+        // 多维度评分
+        response.setTasteRating(review.getTasteRating());
+        response.setEnvironmentRating(review.getEnvironmentRating());
+        response.setServiceRating(review.getServiceRating());
+        response.setValueRating(review.getValueRating());
+
+        // 点赞数
+        response.setLikeCount(review.getLikeCount());
 
         // 权限判断
         boolean isOwner = currentUserId != null && review.getUser().getId().equals(currentUserId);

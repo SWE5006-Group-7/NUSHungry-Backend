@@ -23,6 +23,16 @@ public class ReviewResponse {
     private Double rating;
     private String comment;
     private List<String> imageUrls;
+
+    // 多维度评分
+    private Double tasteRating;
+    private Double environmentRating;
+    private Double serviceRating;
+    private Double valueRating;
+
+    // 互动数据
+    private Integer likeCount; // 点赞数
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private boolean canEdit; // 当前用户是否可以编辑

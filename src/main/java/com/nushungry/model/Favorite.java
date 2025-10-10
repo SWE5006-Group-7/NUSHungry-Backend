@@ -26,8 +26,15 @@ public class Favorite {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Column(name = "sort_order")
+    private Integer sortOrder;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        // 默认排序顺序为创建时的时间戳
+        if (sortOrder == null) {
+            sortOrder = (int) (System.currentTimeMillis() / 1000);
+        }
     }
 }

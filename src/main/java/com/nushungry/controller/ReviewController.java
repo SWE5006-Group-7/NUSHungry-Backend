@@ -245,4 +245,202 @@ public class ReviewController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
+    /**
+     * 获取热门评价（综合算法：点赞数 + 评分 + 时间新鲜度）
+     */
+    @GetMapping("/stall/{stallId}/hot")
+    @Operation(summary = "获取热门评价", description = "获取摊位的热门评价（基于综合算法）")
+    public ResponseEntity<Map<String, Object>> getHotReviews(
+            @PathVariable Long stallId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        try {
+            Long currentUserId = authentication != null ? ((User) authentication.getPrincipal()).getId() : null;
+            Pageable pageable = PageRequest.of(page, size);
+            Page<ReviewResponse> reviewsPage = reviewService.getHotReviews(stallId, pageable, currentUserId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", reviewsPage.getContent());
+            response.put("currentPage", reviewsPage.getNumber());
+            response.put("totalItems", reviewsPage.getTotalElements());
+            response.put("totalPages", reviewsPage.getTotalPages());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting hot reviews: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取高分评价（4星及以上）
+     */
+    @GetMapping("/stall/{stallId}/high-rated")
+    @Operation(summary = "获取高分评价", description = "获取摊位的高分评价（4星及以上）")
+    public ResponseEntity<Map<String, Object>> getHighRatedReviews(
+            @PathVariable Long stallId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        try {
+            Long currentUserId = authentication != null ? ((User) authentication.getPrincipal()).getId() : null;
+            Pageable pageable = PageRequest.of(page, size);
+            Page<ReviewResponse> reviewsPage = reviewService.getHighRatedReviews(stallId, pageable, currentUserId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", reviewsPage.getContent());
+            response.put("currentPage", reviewsPage.getNumber());
+            response.put("totalItems", reviewsPage.getTotalElements());
+            response.put("totalPages", reviewsPage.getTotalPages());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting high-rated reviews: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取低分评价（2星及以下）
+     */
+    @GetMapping("/stall/{stallId}/low-rated")
+    @Operation(summary = "获取低分评价", description = "获取摊位的低分评价（2星及以下）")
+    public ResponseEntity<Map<String, Object>> getLowRatedReviews(
+            @PathVariable Long stallId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        try {
+            Long currentUserId = authentication != null ? ((User) authentication.getPrincipal()).getId() : null;
+            Pageable pageable = PageRequest.of(page, size);
+            Page<ReviewResponse> reviewsPage = reviewService.getLowRatedReviews(stallId, pageable, currentUserId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", reviewsPage.getContent());
+            response.put("currentPage", reviewsPage.getNumber());
+            response.put("totalItems", reviewsPage.getTotalElements());
+            response.put("totalPages", reviewsPage.getTotalPages());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting low-rated reviews: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取有图评价
+     */
+    @GetMapping("/stall/{stallId}/with-images")
+    @Operation(summary = "获取有图评价", description = "获取摊位的带图片评价")
+    public ResponseEntity<Map<String, Object>> getReviewsWithImages(
+            @PathVariable Long stallId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        try {
+            Long currentUserId = authentication != null ? ((User) authentication.getPrincipal()).getId() : null;
+            Pageable pageable = PageRequest.of(page, size);
+            Page<ReviewResponse> reviewsPage = reviewService.getReviewsWithImages(stallId, pageable, currentUserId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", reviewsPage.getContent());
+            response.put("currentPage", reviewsPage.getNumber());
+            response.put("totalItems", reviewsPage.getTotalElements());
+            response.put("totalPages", reviewsPage.getTotalPages());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting reviews with images: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 按点赞数排序获取评价
+     */
+    @GetMapping("/stall/{stallId}/by-likes")
+    @Operation(summary = "按点赞数排序", description = "按点赞数降序获取摊位评价")
+    public ResponseEntity<Map<String, Object>> getReviewsByLikes(
+            @PathVariable Long stallId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        try {
+            Long currentUserId = authentication != null ? ((User) authentication.getPrincipal()).getId() : null;
+            Pageable pageable = PageRequest.of(page, size);
+            Page<ReviewResponse> reviewsPage = reviewService.getReviewsByLikes(stallId, pageable, currentUserId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", reviewsPage.getContent());
+            response.put("currentPage", reviewsPage.getNumber());
+            response.put("totalItems", reviewsPage.getTotalElements());
+            response.put("totalPages", reviewsPage.getTotalPages());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting reviews by likes: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 按评分排序获取评价
+     */
+    @GetMapping("/stall/{stallId}/by-rating")
+    @Operation(summary = "按评分排序", description = "按评分降序获取摊位评价")
+    public ResponseEntity<Map<String, Object>> getReviewsByRatingSorted(
+            @PathVariable Long stallId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        try {
+            Long currentUserId = authentication != null ? ((User) authentication.getPrincipal()).getId() : null;
+            Pageable pageable = PageRequest.of(page, size);
+            Page<ReviewResponse> reviewsPage = reviewService.getReviewsByRating(stallId, pageable, currentUserId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", reviewsPage.getContent());
+            response.put("currentPage", reviewsPage.getNumber());
+            response.put("totalItems", reviewsPage.getTotalElements());
+            response.put("totalPages", reviewsPage.getTotalPages());
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting reviews by rating: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }
