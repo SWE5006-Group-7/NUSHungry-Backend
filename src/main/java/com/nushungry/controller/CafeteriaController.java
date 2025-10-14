@@ -25,26 +25,8 @@ public class CafeteriaController {
     private ImageService imageService;
 
     @GetMapping
-    public List<Map<String, Object>> getAllCafeterias() {
-        return cafeteriaService.findAll().stream()
-                .map(cafeteria -> {
-                    Map<String, Object> cafeteriaData = new HashMap<>();
-                    cafeteriaData.put("id", cafeteria.getId());
-                    cafeteriaData.put("name", cafeteria.getName());
-                    cafeteriaData.put("description", cafeteria.getDescription());
-                    cafeteriaData.put("location", cafeteria.getLocation());
-                    cafeteriaData.put("latitude", cafeteria.getLatitude());
-                    cafeteriaData.put("longitude", cafeteria.getLongitude());
-                    cafeteriaData.put("nearestCarpark", cafeteria.getNearestCarpark());
-                    cafeteriaData.put("nearestBusStop", cafeteria.getNearestBusStop());
-                    cafeteriaData.put("halalInfo", cafeteria.getHalalInfo());
-                    cafeteriaData.put("seatingCapacity", cafeteria.getSeatingCapacity());
-                    cafeteriaData.put("imageUrl", cafeteria.getImageUrl());
-                    cafeteriaData.put("termTimeOpeningHours", cafeteria.getTermTimeOpeningHours());
-                    cafeteriaData.put("vacationOpeningHours", cafeteria.getVacationOpeningHours());
-                    return cafeteriaData;
-                })
-                .collect(java.util.stream.Collectors.toList());
+    public List<Cafeteria> getAllCafeterias() {
+        return cafeteriaService.findAll();
     }
 
     @GetMapping("/{id}")

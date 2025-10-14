@@ -1,7 +1,6 @@
 package com.nushungry.controller;
 import com.nushungry.model.Cafeteria;
 import com.nushungry.repository.CafeteriaRepository;
-import com.nushungry.repository.StallRepository;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,15 +17,12 @@ public class CafeteriaControllerIntegrationTest {
     @Autowired
     private CafeteriaRepository cafeteriaRepository;
 
-    @Autowired
-    private StallRepository stallRepository;
-
     @BeforeEach
     void cleanUp() {
         // 由于外键约束，需要按照依赖关系删除数据
         // 先删除依赖cafeteria的stalls
         // 再删除cafeterias
-        stallRepository.deleteAllInBatch();
+        // 这里使用原生SQL来处理
         cafeteriaRepository.deleteAllInBatch();
     }
 

@@ -249,39 +249,8 @@ public class StallController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> createStall(@RequestBody Stall stall) {
-        Stall savedStall = stallService.save(stall);
-
-        // 手动构建响应数据，避免循环引用问题
-        Map<String, Object> responseData = new HashMap<>();
-        responseData.put("id", savedStall.getId());
-        responseData.put("name", savedStall.getName());
-        responseData.put("cuisineType", savedStall.getCuisineType());
-        responseData.put("imageUrl", savedStall.getImageUrl());
-        responseData.put("halalInfo", savedStall.getHalalInfo());
-        responseData.put("contact", savedStall.getContact());
-        responseData.put("averageRating", savedStall.getAverageRating());
-        responseData.put("reviewCount", savedStall.getReviewCount());
-        responseData.put("averagePrice", savedStall.getAveragePrice());
-        responseData.put("latitude", savedStall.getLatitude());
-        responseData.put("longitude", savedStall.getLongitude());
-
-        // 添加cafeteria信息
-        if (savedStall.getCafeteria() != null) {
-            Map<String, Object> cafeteriaData = new HashMap<>();
-            cafeteriaData.put("id", savedStall.getCafeteria().getId());
-            cafeteriaData.put("name", savedStall.getCafeteria().getName());
-            cafeteriaData.put("location", savedStall.getCafeteria().getLocation());
-            responseData.put("cafeteria", cafeteriaData);
-            responseData.put("cafeteriaName", savedStall.getCafeteria().getName());
-            responseData.put("cafeteriaId", savedStall.getCafeteria().getId());
-        } else {
-            responseData.put("cafeteria", null);
-            responseData.put("cafeteriaName", null);
-            responseData.put("cafeteriaId", null);
-        }
-
-        return ResponseEntity.ok(responseData);
+    public Stall createStall(@RequestBody Stall stall) {
+        return stallService.save(stall);
     }
 
     /**
