@@ -1,14 +1,12 @@
 package com.nushungry.controller;
-import com.nushungry.model.Cafeteria;
+
+import com.nushungry.IntegrationTestBase;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.test.context.ActiveProfiles;
 
 /**
  * CafeteriaController 集成测试
@@ -16,17 +14,12 @@ import org.springframework.test.context.ActiveProfiles;
  * 如果需要测试空数据场景,应使用独立的测试数据库
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-public class CafeteriaControllerIntegrationTest {
+public class CafeteriaControllerIntegrationTest extends IntegrationTestBase {
 
     @Autowired
     private WebTestClient webTestClient;
-
-    @LocalServerPort
-    private int port;
 
     @Test
     @Order(1)
