@@ -99,6 +99,7 @@ This project relies on several key dependencies to function correctly. Here are 
 - **Spring Boot Starter Web**: Provides all the necessary components for building a web application, including an embedded Tomcat server.
 - **Spring Boot Starter Data JPA**: Simplifies data access using the Java Persistence API (JPA).
 - **Spring Boot Starter Security**: Enables security features, allowing for authentication and authorization.
+- **Spring Boot Starter Mail**: Sends transactional emails such as password reset verification codes.
 - **MySQL Connector/J**: The official JDBC driver for MySQL.
 - **Lombok**: A Java library that helps to reduce boilerplate code.
 - **jjwt**: A Java library for creating and verifying JSON Web Tokens (JWTs).
@@ -165,6 +166,22 @@ Once the database is set up, you can run the application.
 
 3. The backend will be running on `http://localhost:8080`.
 
+### Mail Setup
+
+To enable password reset emails, configure SMTP credentials in `src/main/resources/application.properties` (or externalize them through environment variables):
+
+```properties
+spring.mail.host=smtp.example.com
+spring.mail.port=587
+spring.mail.username=your_email@example.com
+spring.mail.password=your_email_password
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+password.reset.code.expiration-minutes=15
+```
+
+Replace the placeholder values with the credentials provided by your email service.
+
 
 
 Of course. Here are the instructions for exporting the database, which have been added to the README file.
@@ -193,3 +210,9 @@ After executing the command, you will be prompted to enter your password. Upon s
 mysqldump -u root -p nushungry_db > nushungry_db_backup.sql
 ```
 
+## Password Reset API
+
+- `POST /api/auth/forgot-password`: Accepts an email address, generates a six-digit verification code with a 15-minute expiration, persists it, and emails the code to the user.
+- `POST /api/auth/reset-password`: Accepts email, verification code, and a new password; validates the code, updates the user's password, and marks the code as used.
+
+Both endpoints are publicly accessible so that users can initiate password recovery without prior authentication.

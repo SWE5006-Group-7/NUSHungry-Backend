@@ -1,18 +1,23 @@
 package com.nushungry.controller;
 
 import com.nushungry.dto.AuthResponse;
+import com.nushungry.dto.ForgotPasswordRequest;
 import com.nushungry.dto.LoginRequest;
 import com.nushungry.dto.RefreshTokenRequest;
 import com.nushungry.dto.RefreshTokenResponse;
 import com.nushungry.dto.RegisterRequest;
-import com.nushungry.service.RefreshTokenService;
+import com.nushungry.dto.ResetPasswordRequest;
 import com.nushungry.service.UserService;
+import com.nushungry.service.PasswordResetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.util.StringUtils;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -21,7 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
-    private final RefreshTokenService refreshTokenService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     @Operation(summary = "Register a new user")
@@ -53,64 +58,62 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/refresh")
-    @Operation(summary = "Refresh access token using refresh token")
-    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Send verification code to email for password reset")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        if (request == null || !StringUtils.hasText(request.getEmail())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Email is required."
+            ));
+        }
         try {
-            RefreshTokenService.RefreshTokenResult result =
-                refreshTokenService.useRefreshToken(request.getRefreshToken());
+            passwordResetService.sendPasswordResetCode(request.getEmail().trim());
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Verification code sent to email."
+            ));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", ex.getMessage()
+            ));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "success", false,
+                    "message", ex.getMessage()
+            ));
+        }
+    }
 
-            RefreshTokenResponse response = new RefreshTokenResponse(
-                result.getAccessToken(),
-                result.getExpiresIn()
+    @PostMapping("/reset-password")
+    @Operation(summary = "Verify code and reset password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        if (request == null
+                || !StringUtils.hasText(request.getEmail())
+                || !StringUtils.hasText(request.getCode())
+                || !StringUtils.hasText(request.getNewPassword())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Email, code, and new password are required."
+            ));
+        }
+
+        try {
+            passwordResetService.verifyCodeAndResetPassword(
+                    request.getEmail().trim(),
+                    request.getCode().trim(),
+                    request.getNewPassword()
             );
-
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(401).body(new ErrorResponse(e.getMessage()));
-        }
-    }
-
-    @PostMapping("/logout")
-    @Operation(summary = "Logout user and revoke refresh token")
-    public ResponseEntity<Void> logout(@RequestBody RefreshTokenRequest request) {
-        try {
-            refreshTokenService.revokeRefreshToken(request.getRefreshToken());
-            return ResponseEntity.ok().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
-
-    /**
-     * 获取客户端真实IP地址
-     */
-    private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-
-        return request.getRemoteAddr();
-    }
-
-    /**
-     * 错误响应DTO
-     */
-    private static class ErrorResponse {
-        private final String error;
-
-        public ErrorResponse(String error) {
-            this.error = error;
-        }
-
-        public String getError() {
-            return error;
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Password reset successfully."
+            ));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", ex.getMessage()
+            ));
         }
     }
 }

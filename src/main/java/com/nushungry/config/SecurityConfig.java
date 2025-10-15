@@ -52,8 +52,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/api/admin/auth/**",
-                                "/api/password/**",     // 允许访问密码重置接口
+                                "/api/password/**",
                                 "/api/cafeterias/**",
                                 "/api/stalls/**",
                                 "/api/images/**",

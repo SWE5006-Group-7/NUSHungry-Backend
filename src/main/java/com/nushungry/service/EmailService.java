@@ -1,110 +1,44 @@
 package com.nushungry.service;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-import org.thymeleaf.TemplateEngine;
-import org.thymeleaf.context.Context;
 
-/**
- * 邮件服务
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
     private final JavaMailSender mailSender;
-    private final TemplateEngine templateEngine;
 
-    /**
-     * 发送简单文本邮件
-     *
-     * @param to 收件人
-     * @param subject 主题
-     * @param text 内容
-     */
-    public void sendSimpleEmail(String to, String subject, String text) {
+    @Value("${spring.mail.username:no-reply@nushungry.com}")
+    private String defaultFromAddress;
+
+    public void sendPasswordResetCode(String to, String code) {
+        SimpleMailMessage mailMessage = new SimpleMailMessage();
+        mailMessage.setTo(to);
+        mailMessage.setFrom(defaultFromAddress);
+        mailMessage.setSubject("NUSHungry Password Reset Verification Code");
+        mailMessage.setText(buildPasswordResetBody(code));
+
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(text);
-            mailSender.send(message);
-            log.info("简单邮件已发送至: {}", to);
-        } catch (Exception e) {
-            log.error("发送简单邮件失败: {}", e.getMessage());
-            throw new RuntimeException("发送邮件失败", e);
+            mailSender.send(mailMessage);
+        } catch (Exception ex) {
+            log.error("Failed to send password reset email to {}", to, ex);
+            throw new IllegalStateException("Failed to send verification email. Please try again later.");
         }
     }
 
-    /**
-     * 发送HTML邮件
-     *
-     * @param to 收件人
-     * @param subject 主题
-     * @param htmlContent HTML内容
-     */
-    public void sendHtmlEmail(String to, String subject, String htmlContent) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(htmlContent, true);
-
-            mailSender.send(message);
-            log.info("HTML邮件已发送至: {}", to);
-        } catch (MessagingException e) {
-            log.error("发送HTML邮件失败: {}", e.getMessage());
-            throw new RuntimeException("发送邮件失败", e);
-        }
-    }
-
-    /**
-     * 发送验证码邮件(使用Thymeleaf模板)
-     *
-     * @param to 收件人
-     * @param code 验证码
-     * @param expirationMinutes 过期时间(分钟)
-     */
-    public void sendVerificationCodeEmail(String to, String code, int expirationMinutes) {
-        try {
-            Context context = new Context();
-            context.setVariable("code", code);
-            context.setVariable("expirationMinutes", expirationMinutes);
-
-            String htmlContent = templateEngine.process("verification-code-email", context);
-
-            sendHtmlEmail(to, "NUSHungry - 密码重置验证码", htmlContent);
-        } catch (Exception e) {
-            log.error("发送验证码邮件失败: {}", e.getMessage());
-            throw new RuntimeException("发送验证码邮件失败", e);
-        }
-    }
-
-    /**
-     * 发送密码重置成功通知邮件
-     *
-     * @param to 收件人
-     */
-    public void sendPasswordResetSuccessEmail(String to) {
-        try {
-            Context context = new Context();
-            context.setVariable("email", to);
-
-            String htmlContent = templateEngine.process("password-reset-success-email", context);
-
-            sendHtmlEmail(to, "NUSHungry - 密码重置成功", htmlContent);
-        } catch (Exception e) {
-            log.error("发送密码重置成功邮件失败: {}", e.getMessage());
-            // 这里不抛出异常,因为密码已经重置成功,邮件发送失败不应影响主流程
-        }
+    private String buildPasswordResetBody(String code) {
+        return "Hello,\n\n"
+                + "We received a request to reset your password for NUSHungry.\n"
+                + "Use the verification code below to complete the process:\n\n"
+                + code + "\n\n"
+                + "This code will expire shortly. If you did not request a password reset, please ignore this email.\n\n"
+                + "Best regards,\n"
+                + "NUSHungry Team";
     }
 }
