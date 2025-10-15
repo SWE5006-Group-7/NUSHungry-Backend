@@ -1,6 +1,7 @@
 package com.nushungry.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -8,6 +9,7 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "images")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Image {
 
     @Id
@@ -16,6 +18,13 @@ public class Image {
 
     @Column(nullable = false)
     private String imageUrl;
+
+    @Column(name = "thumbnail_url")
+    private String thumbnailUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "image_type", nullable = false)
+    private ImageType type = ImageType.PHOTO;
 
     @Column(name = "uploaded_at")
     private LocalDateTime uploadedAt;
@@ -36,5 +45,10 @@ public class Image {
     @PrePersist
     protected void onCreate() {
         uploadedAt = LocalDateTime.now();
+    }
+
+    public enum ImageType {
+        PHOTO,  // 普通照片
+        MENU    // 菜单图片
     }
 }

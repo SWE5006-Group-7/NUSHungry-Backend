@@ -54,4 +54,17 @@ public class CafeteriaService {
                 .filter(cuisineType -> cuisineType != null && !cuisineType.isEmpty())
                 .collect(Collectors.toSet());
     }
+
+    /**
+     * 删除食堂(级联删除关联的摊位)
+     */
+    public void deleteById(Long id) {
+        if (id == null) {
+            throw new IllegalArgumentException("Cafeteria ID must not be null");
+        }
+        if (!cafeteriaRepository.existsById(id)) {
+            throw new IllegalArgumentException("Cafeteria not found with id: " + id);
+        }
+        cafeteriaRepository.deleteById(id);
+    }
 }

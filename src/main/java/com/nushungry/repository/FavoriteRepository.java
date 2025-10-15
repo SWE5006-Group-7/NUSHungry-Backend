@@ -10,8 +10,12 @@ import java.util.Optional;
 
 @Repository
 public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
+    List<Favorite> findByUserOrderBySortOrderDescCreatedAtDesc(User user);
     List<Favorite> findByUser(User user);
     Optional<Favorite> findByUserAndStallId(User user, Long stallId);
+    Optional<Favorite> findByIdAndUser(Long id, User user);
     boolean existsByUserAndStallId(User user, Long stallId);
     void deleteByUserAndStallId(User user, Long stallId);
+    void deleteByIdAndUser(Long id, User user);
+    List<Favorite> findByIdInAndUser(List<Long> ids, User user);
 }

@@ -1,14 +1,16 @@
 package com.nushungry.controller;
 
-import com.nushungry.model.Cafeteria;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nushungry.model.Cafeteria;
 import com.nushungry.service.CafeteriaService;
+import com.nushungry.service.ImageService;
+import com.nushungry.util.JwtUtil;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Arrays;
@@ -25,6 +27,21 @@ class CafeteriaControllerUnitTest {
 
     @MockBean
     private CafeteriaService cafeteriaService;
+
+    @MockBean
+    private ImageService imageService;
+
+    @MockBean
+    private JwtUtil jwtUtil;
+
+    @MockBean
+    private UserDetailsService userDetailsService;
+
+    @MockBean
+    private com.nushungry.service.UserService userService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     void testGetAllCafeterias_single() throws Exception {

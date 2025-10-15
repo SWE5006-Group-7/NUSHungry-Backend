@@ -1,11 +1,13 @@
 package com.nushungry.controller;
 
+import com.nushungry.dto.ReviewResponse;
 import com.nushungry.dto.UserProfileResponse;
 import com.nushungry.model.Favorite;
 import com.nushungry.model.Review;
 import com.nushungry.model.User;
 import com.nushungry.repository.FavoriteRepository;
 import com.nushungry.repository.ReviewRepository;
+import com.nushungry.service.ReviewService;
 import com.nushungry.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,6 +27,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final ReviewService reviewService;
     private final ReviewRepository reviewRepository;
     private final FavoriteRepository favoriteRepository;
 
@@ -37,11 +40,9 @@ public class UserController {
 
     @GetMapping("/reviews")
     @Operation(summary = "Get current user's reviews")
-    public ResponseEntity<List<Review>> getUserReviews() {
+    public ResponseEntity<List<ReviewResponse>> getUserReviews() {
         User user = userService.getCurrentUser();
-        List<Review> reviews = reviewRepository.findAll().stream()
-                .filter(r -> r.getUser() != null && r.getUser().getId().equals(user.getId()))
-                .toList();
+        List<ReviewResponse> reviews = reviewService.getReviewsByUserId(user.getId(), user.getId());
         return ResponseEntity.ok(reviews);
     }
 
@@ -54,10 +55,22 @@ public class UserController {
     }
 
     @PostMapping("/avatar")
-    @Operation(summary = "Upload user avatar")
-    public ResponseEntity<Map<String, String>> uploadAvatar(@RequestParam("file") MultipartFile file) {
+    @Operation(summary = "Upload user avatar with optional cropping")
+    public ResponseEntity<Map<String, String>> uploadAvatar(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "x", required = false, defaultValue = "0") int x,
+            @RequestParam(value = "y", required = false, defaultValue = "0") int y,
+            @RequestParam(value = "width", required = false, defaultValue = "0") int width,
+            @RequestParam(value = "height", required = false, defaultValue = "0") int height) {
         try {
-            String avatarUrl = userService.uploadAvatar(file);
+            String avatarUrl;
+            if (width > 0 && height > 0) {
+                // 带裁剪参数
+                avatarUrl = userService.uploadAvatarWithCrop(file, x, y, width, height);
+            } else {
+                // 不裁剪
+                avatarUrl = userService.uploadAvatar(file);
+            }
             Map<String, String> response = new HashMap<>();
             response.put("avatarUrl", avatarUrl);
             return ResponseEntity.ok(response);

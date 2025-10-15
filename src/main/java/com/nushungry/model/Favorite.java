@@ -26,8 +26,14 @@ public class Favorite {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @Column(name = "sort_order")
+    private Integer sortOrder;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (sortOrder == null) {
+            sortOrder = 0;
+        }
     }
 }

@@ -1,26 +1,341 @@
 package com.nushungry.controller;
 
-import com.nushungry.model.Review;
+import com.nushungry.dto.CreateReviewRequest;
+import com.nushungry.dto.ReviewResponse;
+import com.nushungry.dto.UpdateReviewRequest;
+import com.nushungry.dto.CreateReportRequest;
+import com.nushungry.dto.ReportResponse;
+import com.nushungry.model.User;
 import com.nushungry.service.ReviewService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.nushungry.service.ReviewLikeService;
+import com.nushungry.service.ReviewReportService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+/**
+ * 评价控制器
+ * 提供评价相关的API端点
+ */
+@Slf4j
 @RestController
 @RequestMapping("/api/reviews")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
+@Tag(name = "Review Management", description = "评价管理接口")
 public class ReviewController {
 
-    @Autowired
-    private ReviewService reviewService;
+    private final ReviewService reviewService;
+    private final ReviewLikeService reviewLikeService;
+    private final ReviewReportService reviewReportService;
 
-    @GetMapping
-    public List<Review> getReviewsByStall(@RequestParam Long stallId) {
-        return reviewService.findByStallId(stallId);
+    /**
+     * 创建评价
+     */
+    @PostMapping
+    @Operation(summary = "创建评价", description = "用户为摊位创建新评价")
+    @SecurityRequirement(name = "Bearer Authentication")
+    public ResponseEntity<Map<String, Object>> createReview(
+            @Valid @RequestBody CreateReviewRequest request,
+            @AuthenticationPrincipal User currentUser) {
+
+        try {
+            ReviewResponse review = reviewService.createReview(request, currentUser.getId());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "评价创建成功");
+            response.put("data", review);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            log.error("Error creating review: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
     }
 
-    @PostMapping
-    public Review createReview(@RequestBody Review review) {
-        return reviewService.save(review);
+    /**
+     * 更新评价
+     */
+    @PutMapping("/{id}")
+    @Operation(summary = "更新评价", description = "更新用户的评价内容")
+    @SecurityRequirement(name = "Bearer Authentication")
+    public ResponseEntity<Map<String, Object>> updateReview(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateReviewRequest request,
+            @AuthenticationPrincipal User currentUser) {
+
+        try {
+            ReviewResponse review = reviewService.updateReview(id, request, currentUser.getId());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "评价更新成功");
+            response.put("data", review);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error updating review: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 删除评价
+     */
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除评价", description = "删除用户的评价")
+    @SecurityRequirement(name = "Bearer Authentication")
+    public ResponseEntity<Map<String, Object>> deleteReview(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
+
+        try {
+            reviewService.deleteReview(id, currentUser.getId());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "评价删除成功");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error deleting review: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取评价详情
+     */
+    @GetMapping("/{id}")
+    @Operation(summary = "获取评价详情", description = "根据ID获取评价详情")
+    public ResponseEntity<Map<String, Object>> getReview(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        try {
+            Long currentUserId = authentication != null ? ((User) authentication.getPrincipal()).getId() : null;
+            ReviewResponse review = reviewService.getReviewById(id, currentUserId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", review);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting review: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取摊位的评价列表
+     */
+    @GetMapping("/stall/{stallId}")
+    @Operation(summary = "获取摊位评价", description = "获取指定摊位的所有评价")
+    public ResponseEntity<Map<String, Object>> getStallReviews(
+            @PathVariable Long stallId,
+            @Parameter(description = "页码（从0开始）") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "排序方式 (createdAt, likesCount)") @RequestParam(required = false) String sortBy,
+            Authentication authentication) {
+
+        try {
+            Long currentUserId = authentication != null ? ((User) authentication.getPrincipal()).getId() : null;
+
+            if (size == 0) {
+                // 不分页，返回所有评价
+                List<ReviewResponse> reviews = reviewService.getReviewsByStallId(stallId, currentUserId);
+
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("data", reviews);
+                response.put("total", reviews.size());
+
+                return ResponseEntity.ok(response);
+            } else {
+                // 分页返回（支持排序）
+                Pageable pageable = PageRequest.of(page, size);
+                Page<ReviewResponse> reviewsPage;
+
+                if (sortBy != null && !sortBy.isEmpty()) {
+                    reviewsPage = reviewService.getReviewsByStallIdWithSort(stallId, pageable, sortBy, currentUserId);
+                } else {
+                    reviewsPage = reviewService.getReviewsByStallId(stallId, pageable, currentUserId);
+                }
+
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("data", reviewsPage.getContent());
+                response.put("currentPage", reviewsPage.getNumber());
+                response.put("totalItems", reviewsPage.getTotalElements());
+                response.put("totalPages", reviewsPage.getTotalPages());
+                response.put("pageSize", reviewsPage.getSize());
+
+                return ResponseEntity.ok(response);
+            }
+        } catch (Exception e) {
+            log.error("Error getting stall reviews: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取摊位的评分分布
+     */
+    @GetMapping("/stall/{stallId}/rating-distribution")
+    @Operation(summary = "获取评分分布", description = "获取摊位的评分分布统计")
+    public ResponseEntity<Map<String, Object>> getRatingDistribution(@PathVariable Long stallId) {
+        try {
+            Map<String, Object> distribution = reviewService.getRatingDistribution(stallId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", distribution);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error getting rating distribution: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 获取用户的评价历史
+     */
+    @GetMapping("/user/{userId}")
+    @Operation(summary = "获取用户评价历史", description = "获取指定用户的所有评价")
+    public ResponseEntity<Map<String, Object>> getUserReviews(
+            @PathVariable Long userId,
+            @Parameter(description = "页码（从0开始）") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        try {
+            Long currentUserId = authentication != null ? ((User) authentication.getPrincipal()).getId() : null;
+
+            if (size == 0) {
+                // 不分页，返回所有评价
+                List<ReviewResponse> reviews = reviewService.getReviewsByUserId(userId, currentUserId);
+
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("data", reviews);
+                response.put("total", reviews.size());
+
+                return ResponseEntity.ok(response);
+            } else {
+                // 分页返回
+                Pageable pageable = PageRequest.of(page, size);
+                Page<ReviewResponse> reviewsPage = reviewService.getReviewsByUserId(userId, pageable, currentUserId);
+
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("data", reviewsPage.getContent());
+                response.put("currentPage", reviewsPage.getNumber());
+                response.put("totalItems", reviewsPage.getTotalElements());
+                response.put("totalPages", reviewsPage.getTotalPages());
+                response.put("pageSize", reviewsPage.getSize());
+
+                return ResponseEntity.ok(response);
+            }
+        } catch (Exception e) {
+            log.error("Error getting user reviews: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 点赞评价（切换点赞状态）
+     */
+    @PostMapping("/{id}/like")
+    @Operation(summary = "点赞评价", description = "切换评价的点赞状态（已点赞则取消，未点赞则点赞）")
+    @SecurityRequirement(name = "Bearer Authentication")
+    public ResponseEntity<Map<String, Object>> toggleLike(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
+
+        try {
+            boolean liked = reviewLikeService.toggleLike(id, currentUser.getId());
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", liked ? "点赞成功" : "取消点赞成功");
+            response.put("liked", liked);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error toggling like: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * 举报评价
+     */
+    @PostMapping("/{id}/report")
+    @Operation(summary = "举报评价", description = "举报不当评价内容")
+    @SecurityRequirement(name = "Bearer Authentication")
+    public ResponseEntity<Map<String, Object>> reportReview(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateReportRequest request,
+            @AuthenticationPrincipal User currentUser) {
+
+        try {
+            ReportResponse report = reviewReportService.createReport(id, currentUser.getId(), request);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "举报提交成功，我们会尽快处理");
+            response.put("data", report);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            log.error("Error reporting review: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
     }
 }

@@ -20,7 +20,14 @@ public class JwtUtil {
     @Value("${jwt.secret:mySecretKeyForNUSHungryApplicationThatIsLongEnoughForHS256Algorithm}")
     private String secret;
 
-    @Value("${jwt.expiration:86400000}") // 24 hours in milliseconds
+    @Value("${jwt.access-token.expiration:3600000}") // 1 hour in milliseconds
+    private Long accessTokenExpiration;
+
+    @Value("${jwt.refresh-token.expiration:2592000000}") // 30 days in milliseconds
+    private Long refreshTokenExpiration;
+
+    // 保持向后兼容
+    @Value("${jwt.expiration:3600000}") // 1 hour (deprecated, use access-token.expiration)
     private Long expiration;
 
     private Key getSigningKey() {
@@ -54,10 +61,48 @@ public class JwtUtil {
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, userDetails.getUsername());
+        return createAccessToken(claims, userDetails.getUsername());
+    }
+
+    /**
+     * Generate Access Token with custom claims (short-lived, 1 hour)
+     */
+    public String generateAccessToken(String username, Map<String, Object> additionalClaims) {
+        Map<String, Object> claims = new HashMap<>(additionalClaims);
+        return createAccessToken(claims, username);
+    }
+
+    /**
+     * Generate Refresh Token (long-lived, 30 days)
+     */
+    public String generateRefreshToken(String username) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("type", "refresh");
+        return createRefreshToken(claims, username);
+    }
+
+    private String createAccessToken(Map<String, Object> claims, String subject) {
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    private String createRefreshToken(Map<String, Object> claims, String subject) {
+        return Jwts.builder()
+                .setClaims(claims)
+                .setSubject(subject)
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
+        // 保持向后兼容
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
@@ -70,5 +115,78 @@ public class JwtUtil {
     public Boolean validateToken(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    }
+
+    /**
+     * Generate token with custom claims
+     * Used for including additional information like roles in the token
+     */
+    public String generateTokenWithClaims(String username, Map<String, Object> additionalClaims) {
+        Map<String, Object> claims = new HashMap<>(additionalClaims);
+        return createToken(claims, username);
+    }
+
+    /**
+     * Validate token with username string (for cases where UserDetails is not available)
+     */
+    public Boolean validateToken(String token, String username) {
+        final String extractedUsername = extractUsername(token);
+        return (extractedUsername.equals(username) && !isTokenExpired(token));
+    }
+
+    /**
+     * Get JWT expiration time in milliseconds
+     */
+    public Long getJwtExpiration() {
+        return expiration;
+    }
+
+    /**
+     * Get Access Token expiration time in milliseconds
+     */
+    public Long getAccessTokenExpiration() {
+        return accessTokenExpiration;
+    }
+
+    /**
+     * Get Refresh Token expiration time in milliseconds
+     */
+    public Long getRefreshTokenExpiration() {
+        return refreshTokenExpiration;
+    }
+
+    /**
+     * Extract a custom claim from the token
+     */
+    public Object extractCustomClaim(String token, String claimName) {
+        final Claims claims = extractAllClaims(token);
+        return claims.get(claimName);
+    }
+
+    /**
+     * Extract user ID from token
+     */
+    public Long extractUserId(String token) {
+        final Claims claims = extractAllClaims(token);
+        Object userIdObj = claims.get("userId");
+        if (userIdObj instanceof Integer) {
+            return ((Integer) userIdObj).longValue();
+        } else if (userIdObj instanceof Long) {
+            return (Long) userIdObj;
+        } else if (userIdObj instanceof String) {
+            return Long.parseLong((String) userIdObj);
+        }
+        return null;
+    }
+
+    /**
+     * Validate token without UserDetails (just check if token is valid and not expired)
+     */
+    public Boolean validateToken(String token) {
+        try {
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
