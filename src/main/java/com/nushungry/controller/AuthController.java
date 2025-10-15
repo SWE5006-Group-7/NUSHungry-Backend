@@ -116,4 +116,29 @@ public class AuthController {
             ));
         }
     }
+
+    private String getClientIpAddress(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        String[] headerNames = {
+                "X-Forwarded-For",
+                "Proxy-Client-IP",
+                "WL-Proxy-Client-IP",
+                "HTTP_X_FORWARDED_FOR",
+                "HTTP_X_FORWARDED",
+                "HTTP_X_CLUSTER_CLIENT_IP",
+                "HTTP_CLIENT_IP",
+                "HTTP_FORWARDED_FOR",
+                "HTTP_FORWARDED",
+                "HTTP_VIA"
+        };
+        for (String header : headerNames) {
+            String ip = request.getHeader(header);
+            if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
+                return ip;
+            }
+        }
+        return request.getRemoteAddr();
+    }
 }

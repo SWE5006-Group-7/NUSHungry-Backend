@@ -84,8 +84,7 @@ public class VerificationCodeService {
             verificationCodeRepository.save(verificationCode);
 
             // 发送邮件
-            int expirationMinutes = (int) (codeExpirationMs / 60000);
-            emailService.sendVerificationCodeEmail(email, code, expirationMinutes);
+            emailService.sendPasswordResetCode(email, code);
 
             log.info("密码重置验证码已发送至: {}", email);
             return true;
