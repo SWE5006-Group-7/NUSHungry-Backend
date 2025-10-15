@@ -8,9 +8,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -42,16 +39,8 @@ public class AdminUserController {
             @Parameter(description = "搜索关键词（用户名或邮箱）") @RequestParam(required = false) String search) {
 
         try {
-            // 构建排序
-            Sort sort = sortDirection.equalsIgnoreCase("ASC")
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
-
-            // 构建分页
-            Pageable pageable = PageRequest.of(page, size, sort);
-
             // 调用用户服务获取用户列表
-            UserListResponse response = userServiceClient.getUserList(pageable, search);
+            UserListResponse response = userServiceClient.getUserList(page, size, sortBy, sortDirection, search);
 
             return ResponseEntity.ok(response);
 
