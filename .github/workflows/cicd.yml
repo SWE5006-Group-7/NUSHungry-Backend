@@ -183,7 +183,7 @@ jobs:
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.TOKEN }}
-          approvers: SWE5006-Group-7
+          approvers: chowjss-spec
           minimum-approvals: 1
           issue-title: "Deploying to prod environment"
           issue-body: "Please review the test artefacts, and approve or deny the deployment."
