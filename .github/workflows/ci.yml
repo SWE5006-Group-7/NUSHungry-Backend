@@ -6,13 +6,6 @@ on:
   pull_request:
     branches: [ "feat/complete-backend-cicd" ]
 
-permissions:
-  issues: write
-  contents: read
-env:
-  REGISTRY: ${{ secrets.REGISTRY }}
-  IMAGE_NAME: nushungry/monolith-backend
-  SHA: ${{ github.event.pull_request.head.sha || github.event.after }}
 
 jobs:
   unit-and-integration-tests:
@@ -125,80 +118,3 @@ jobs:
           docker image ls
           snyk container test testimage:latest --file=Dockerfile --severity-threshold=high --fail-on=upgradable
         continue-on-error: true
-
-  docker-publish:
-    needs: ["container-scan"]
-    runs-on: ubuntu-latest
-    environment: dev
-    if: github.event_name != 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: maven
-      - name: Setup Docker buildx
-        uses: docker/setup-buildx-action@v2.5.0
-        with:
-          driver-opts: image=moby/buildkit:v0.10.6
-
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v4.4.0
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          labels: |
-            org.opencontainers.image.title=NUS Hungry Backend
-            org.opencontainers.image.description=Backend for NUS Hungry application
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ env.SHA }}
-          tags: |
-            type=sha,prefix=,suffix=,format=short
-            type=raw,value=latest
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v5.0.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-southeast-1
-
-      - name: Log into registry
-        run: aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin ${{ env.REGISTRY }}
-
-      - name: Package
-        run: mvn package -DskipTests
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4.0.0
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-  deploy:
-    needs: docker-publish
-    runs-on: ubuntu-latest
-    environment: dev
-    steps:
-      - name: Require manual approval
-        uses: trstringer/manual-approval@v1
-        timeout-minutes: 5
-        with:
-          secret: ${{ github.TOKEN }}
-          approvers: chowjss-spec,1zero,Alex6747,NagiicivA,wlyIris
-          minimum-approvals: 1
-          issue-title: "Deploying to dev environment"
-          issue-body: "Please review the test artefacts, and approve or deny the deployment."
-          exclude-workflow-initiator-as-approver: false
-          fail-on-denial: true
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v5.0.0
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-southeast-1
-
-      - name: Deploy new image version
-        run: aws ecs update-service --cluster nushungry-cluster --service nushungry-service --force-new-deployment
