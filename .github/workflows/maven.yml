@@ -120,7 +120,7 @@ jobs:
         run: |
           docker build -t testimage .
           docker image ls
-          snyk container test testimage:latest --file=Dockerfile
+          snyk container test testimage:latest --file=Dockerfile --severity-threshold=high --fail-on=upgradable
 
   docker-publish:
     needs: ["container-scan"]
