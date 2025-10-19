@@ -1,4 +1,4 @@
-name: CI Pipeline to run tests, build docker image and publish.
+name: CI/CD Pipeline to run tests, build docker image and publish.
 
 on:
   push:
@@ -174,3 +174,28 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+  deploy:
+    needs: ["docker-publish"]
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Require manual approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: chowjss-spec
+          minimum-approvals: 1
+          issue-title: "Deploying to prod environment"
+          issue-body: "Please review the test artefacts, and approve or deny the deployment."
+          issue-body-file-path: relative/file_path/wrt/repo/root
+          exclude-workflow-initiator-as-approver: false
+          fail-on-denial: true
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v5.0.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-1
+
+      - name: Deploy new image version
+        run: aws ecs update-service --cluster nushungry-cluster --service nushungry-service --force-new-deployment
