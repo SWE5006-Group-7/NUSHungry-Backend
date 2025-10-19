@@ -4,6 +4,7 @@ import com.nushungry.preference.entity.SearchHistory;
 import com.nushungry.preference.repository.SearchHistoryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +40,7 @@ public class SearchHistoryService {
     /**
      * Batch remove search history keywords for a user.
      */
+    @Transactional
     public void batchRemove(Long userId, List<String> keywords) {
         searchHistoryRepository.deleteByUserIdAndKeywordIn(userId, keywords);
     }
@@ -46,6 +48,7 @@ public class SearchHistoryService {
     /**
      * Clear all search history for a user.
      */
+    @Transactional
     public void clearHistory(Long userId) {
         searchHistoryRepository.deleteByUserId(userId);
     }

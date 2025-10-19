@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 服务
+  postgres:
+    image: postgres:16-alpine
+    container_name: admin-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: admin_service
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_admin_db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - admin-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d admin_service"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # RabbitMQ 服务
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: admin-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password123
+      RABBITMQ_DEFAULT_VHOST: /admin
+    ports:
+      - "5672:5672"    # AMQP 端口
+      - "15672:15672"  # 管理界面端口
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - admin-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Admin Service 应用
+  admin-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: admin-service
+    restart: unless-stopped
+    environment:
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: prod
+      
+      # PostgreSQL 配置
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: admin_service
+      DB_USERNAME: admin
+      DB_PASSWORD: password123
+      
+      # RabbitMQ 配置
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: admin
+      RABBITMQ_PASSWORD: password123
+      RABBITMQ_VHOST: /admin
+      
+      # JWT 配置
+      JWT_SECRET: your-secret-key-change-in-production
+      JWT_EXPIRATION: 86400000
+      
+      # JVM 配置
+      JAVA_OPTS: -Xms512m -Xmx1024m -XX:+UseG1GC
+      
+      # Swagger 配置（开发环境可启用）
+      SWAGGER_ENABLED: "true"
+      
+      # CORS 配置
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+    ports:
+      - "8082:8082"  # 应用端口
+      - "9082:9082"  # 管理端口
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - admin-network
+    volumes:
+      - ./logs:/var/log/admin-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+# 网络配置
+networks:
+  admin-network:
+    driver: bridge
+
+# 数据卷配置
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local

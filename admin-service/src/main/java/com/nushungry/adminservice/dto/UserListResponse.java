@@ -1,9 +1,11 @@
 package com.nushungry.adminservice.dto;
 
+import lombok.Builder;
 import lombok.Data;
 import java.util.List;
 
 @Data
+@Builder
 public class UserListResponse {
     private List<UserDTO> users;
     private int currentPage;

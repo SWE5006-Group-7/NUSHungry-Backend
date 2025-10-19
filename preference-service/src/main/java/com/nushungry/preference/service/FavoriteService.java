@@ -30,6 +30,7 @@ public class FavoriteService {
     /**
      * Remove a favorite record for a user.
      */
+    @Transactional
     public void removeFavorite(Long userId, Long stallId) {
         favoriteRepository.deleteByUserIdAndStallId(userId, stallId);
     }

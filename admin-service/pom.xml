@@ -47,6 +47,12 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- OpenFeign for service communication -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
