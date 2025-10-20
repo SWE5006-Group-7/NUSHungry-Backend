@@ -48,7 +48,7 @@
 - **Cafeteria Service**: 食堂和档口目录服务
 - **PostgreSQL**: 存储食堂、档口、图片元数据
 - **RabbitMQ**: 监听评价更新事件，同步评分
-- **Redis** (可选): 缓存热门食堂和档口数据
+- **Redis**: 缓存食堂列表、档口列表和搜索结果，提升查询性能
 
 ---
 
@@ -69,6 +69,7 @@
 - **Docker Compose**: 2.0+ (可选)
 - **PostgreSQL**: 16+
 - **RabbitMQ**: 3.12+
+- **Redis**: 7+
 - **Maven**: 3.9+ (构建时)
 
 ---
@@ -105,6 +106,7 @@ NAME                  STATUS              PORTS
 cafeteria-service     Up (healthy)        0.0.0.0:8083->8083/tcp
 cafeteria-postgres    Up (healthy)        0.0.0.0:5433->5432/tcp
 cafeteria-rabbitmq    Up (healthy)        0.0.0.0:5673->5672/tcp, 0.0.0.0:15673->15672/tcp
+cafeteria-redis       Up (healthy)        0.0.0.0:6380->6379/tcp
 ```
 
 #### 步骤3: 查看日志

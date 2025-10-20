@@ -1,218 +1,497 @@
-# nushungry-Backend
+# NUSHungry Backend - Microservices Architecture
 
-This is the backend for the NUSHungry application.
+Backend system for the NUSHungry application, implemented using a microservices architecture with Spring Boot, Docker, and message-driven communication.
 
+## 📋 Table of Contents
+- [System Architecture](#system-architecture)
+- [Microservices Overview](#microservices-overview)
+- [Technology Stack](#technology-stack)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [Documentation](#documentation)
 
+---
 
-## System Architecture
+## 🏗️ System Architecture
 
-The nushungry-Backend follows a classic three-tier architecture, commonly used in Spring Boot applications. This architecture separates the application into three logical and physical computing tiers: the presentation tier, the application tier, and the data tier.
+The NUSHungry backend has been refactored from a monolithic architecture to a **microservices architecture**, providing better scalability, maintainability, and independent deployment capabilities.
 
 ```mermaid
-graph TD
-    subgraph Presentation Layer
-        A[CafeteriaController]
-        B[StallController]
-        C[ReviewController]
+graph TB
+    subgraph "Client Layer"
+        Client[Web/Mobile Client]
     end
-    subgraph Service Layer
-        D[CafeteriaService]
-        E[StallService]
-        F[ReviewService]
+    
+    subgraph "Microservices"
+        Admin[admin-service<br/>:8082]
+        Cafeteria[cafeteria-service<br/>:8083]
+        Review[review-service<br/>:8084]
+        Media[media-service<br/>:8085]
+        Preference[preference-service<br/>:8086]
     end
-    subgraph Data Access Layer
-        G[CafeteriaRepository]
-        H[StallRepository]
-        I[ReviewRepository]
+    
+    subgraph "Data Layer"
+        PG1[(PostgreSQL<br/>Admin DB<br/>:5432)]
+        PG2[(PostgreSQL<br/>Cafeteria DB<br/>:5433)]
+        PG3[(PostgreSQL<br/>Media DB<br/>:5434)]
+        PG4[(PostgreSQL<br/>Preference DB<br/>:5435)]
+        Mongo[(MongoDB<br/>Review DB<br/>:27017)]
     end
-    subgraph Database
-        J[(MySQL)]
+    
+    subgraph "Infrastructure"
+        RabbitMQ[RabbitMQ<br/>:5672, 15672]
+        MinIO[MinIO<br/>:9000, 9001]
     end
-    A --> D
-    B --> E
-    C --> F
-    D --> G
-    E --> H
-    F --> I
-    G --> J
-    H --> J
-    I --> J
+    
+    Client --> Admin
+    Client --> Cafeteria
+    Client --> Review
+    Client --> Media
+    Client --> Preference
+    
+    Admin --> PG1
+    Admin --> RabbitMQ
+    Cafeteria --> PG2
+    Cafeteria --> RabbitMQ
+    Review --> Mongo
+    Review --> RabbitMQ
+    Media --> PG3
+    Media --> MinIO
+    Preference --> PG4
+    
+    Review -.Event.-> RabbitMQ
+    RabbitMQ -.Event.-> Cafeteria
 ```
 
+### Architecture Principles
+- **Service Independence**: Each microservice has its own database and can be deployed independently
+- **Event-Driven**: Services communicate asynchronously via RabbitMQ for loose coupling
+- **Polyglot Persistence**: PostgreSQL for relational data, MongoDB for document-based reviews
+- **API-First**: RESTful APIs with Swagger/OpenAPI documentation
+- **Containerization**: Docker-based deployment for consistency across environments
 
+---
 
-- **Presentation Tier (Controllers)**: This is the top-most level of the application. The controllers handle HTTP requests, validate user input, and call the appropriate services. In this project, the controllers are: `CafeteriaController.java`, `ReviewController.java`, and `StallController.java`.
-- **Application Tier (Services)**: The service layer contains the business logic of the application. It's responsible for processing data, performing calculations, and coordinating with the data access layer. The services in this project are: `CafeteriaService.java`, `ReviewService.java`, and `StallService.java`.
-- **Data Tier (Repositories and Models)**: This tier is responsible for data persistence. The repositories are interfaces that provide a way to interact with the database, while the models are the Java objects that represent the data.
-  - **Repositories**: `CafeteriaRepository.java`, `ReviewRepository.java`, `StallRepository.java`.
-  - **Models**: `Cafeteria.java`, `Review.java`, `Stall.java`.
+## 🚀 Microservices Overview
 
+| Service | Port | Database | Status | Description |
+|---------|------|----------|--------|-------------|
+| **admin-service** | 8082 | PostgreSQL (5432) | ✅ Production | User management, authentication (JWT), admin dashboard |
+| **cafeteria-service** | 8083 | PostgreSQL (5433) | ✅ Production | Cafeteria and stall management, ratings aggregation |
+| **review-service** | 8084 | MongoDB (27017) | ✅ Production | Review creation, likes, comments (event publisher) |
+| **media-service** | 8085 | PostgreSQL (5434) | ✅ Production | Image/file uploads, processing, storage (MinIO) |
+| **preference-service** | 8086 | PostgreSQL (5435) | ✅ Production | User favorites, search history |
 
+### Key Features by Service
 
-## Folder Structure
+#### 🔐 admin-service
+- JWT-based authentication & authorization
+- User CRUD operations
+- Role-based access control (Admin/User)
+- Dashboard statistics aggregation
+- Password reset with email verification
+- RabbitMQ event consumption
 
-The project follows the standard Maven project structure:
+#### 🍽️ cafeteria-service
+- Cafeteria and stall information management
+- Geographic location support (coordinates)
+- Operating hours management
+- Real-time rating aggregation (via RabbitMQ events)
+- Image association with cafeterias/stalls
+- Advanced search and filtering
 
-```
-nushungry-Backend
-├── pom.xml
-├── README.md
-├── src
-│   ├── main
-│   │   ├── java
-│   │   │   └── com
-│   │   │       └── nushungry
-│   │   │           ├── NushungryApplication.java
-│   │   │           ├── config
-│   │   │           │   ├── SecurityConfig.java
-│   │   │           │   └── WebConfig.java
-│   │   │           ├── controller
-│   │   │           │   ├── CafeteriaController.java
-│   │   │           │   ├── ReviewController.java
-│   │   │           │   └── StallController.java
-│   │   │           ├── model
-│   │   │           │   ├── Cafeteria.java
-│   │   │           │   ├── Review.java
-│   │   │           │   └── Stall.java
-│   │   │           ├── repository
-│   │   │           │   ├── CafeteriaRepository.java
-│   │   │           │   ├── ReviewRepository.java
-│   │   │           │   └── StallRepository.java
-│   │   │           └── service
-│   │   │               ├── CafeteriaService.java
-│   │   │               ├── ReviewService.java
-│   │   │               └── StallService.java
-│   │   └── resources
-│   │       └── application.properties
-│   └── test
-└── target
-```
+#### ⭐ review-service
+- Review creation, update, deletion
+- Like/unlike functionality
+- Comment system (nested replies)
+- MongoDB for flexible document storage
+- Event publishing to RabbitMQ (rating updates)
+- Full-text search capabilities
 
-------
+#### 📸 media-service
+- Multi-format image upload (JPEG, PNG, WebP)
+- Image processing (resizing, compression)
+- MinIO object storage integration
+- File metadata tracking
+- Association with cafeterias/stalls/reviews
 
+#### ❤️ preference-service
+- User favorites management
+- Search history tracking
+- Batch operations (add/remove multiple favorites)
+- Privacy-focused (user data isolation)
 
+---
 
-## Dependencies
+## 🛠️ Technology Stack
 
-This project relies on several key dependencies to function correctly. Here are some of the most important ones:
+### Core Framework
+- **Spring Boot**: 3.2.3
+- **Java**: 17 (LTS)
+- **Build Tool**: Maven
 
-- **Spring Boot Starter Web**: Provides all the necessary components for building a web application, including an embedded Tomcat server.
-- **Spring Boot Starter Data JPA**: Simplifies data access using the Java Persistence API (JPA).
-- **Spring Boot Starter Security**: Enables security features, allowing for authentication and authorization.
-- **Spring Boot Starter Mail**: Sends transactional emails such as password reset verification codes.
-- **MySQL Connector/J**: The official JDBC driver for MySQL.
-- **Lombok**: A Java library that helps to reduce boilerplate code.
-- **jjwt**: A Java library for creating and verifying JSON Web Tokens (JWTs).
+### Databases
+- **PostgreSQL**: 14+ (Relational data)
+- **MongoDB**: 6.0+ (Document storage)
 
-------
+### Message Queue
+- **RabbitMQ**: 3.12+ (Async communication)
 
+### Storage
+- **MinIO**: Latest (Object storage for media files)
 
+### Containerization
+- **Docker**: 20.10+
+- **Docker Compose**: 2.x
 
-## How to Start
+### Security
+- **Spring Security**: JWT authentication
+- **BCrypt**: Password hashing
+
+### Documentation
+- **Swagger/OpenAPI**: 3.0 (API documentation)
+
+### Testing
+- **JUnit 5**: Unit testing
+- **Mockito**: Mocking framework
+- **TestContainers**: Integration testing
+
+### CI/CD
+- **GitHub Actions**: Automated CI/CD pipeline
+- **AWS ECS**: Production deployment
+
+---
+
+## ⚡ Quick Start
 
 ### Prerequisites
 
-- Java 17 or higher
-- Maven
-- MySQL
+- **Java**: 17 or higher
+- **Maven**: 3.8+
+- **Docker**: 20.10+ (with Docker Compose)
+- **Git**: For version control
 
+### 🚀 Option 1: Docker Compose (Recommended)
 
-
-### Note: First-Time Setup - Database Initialization
-
-If you are setting up this project for the first time, you must create the database and import the initial data.
-
-1. Log in to MySQL:
-
-   Open your terminal and log in to the MySQL server.
-
-   ```bash
-   mysql -u [your_username] -p
-   ```
-
-2. Create the Database:
-
-   Create a new database for the application. We'll use nushungry_db as an example.
-
-   ```sql
-   CREATE DATABASE nushungry_db;
-   ```
-
-3. Import the Data:
-
-   Import the provided SQL backup file (e.g., backup.sql) into the newly created database. Make sure the SQL file is in your current directory or provide the full path to it.
-
-   ```bash
-   mysql -u [your_username] -p nushungry_db < backup.sql
-   ```
-
-4. Configure Application:
-
-   Ensure your src/main/resources/application.properties file is correctly configured to connect to this database.
-
-
-
-### Running the Application
-
-Once the database is set up, you can run the application.
-
-1. Navigate to the `nushungry-Backend` directory.
-
-2. Run the application using Maven:
-
-   ```bash
-   mvn spring-boot:run
-   ```
-
-3. The backend will be running on `http://localhost:8080`.
-
-### Mail Setup
-
-To enable password reset emails, configure SMTP credentials in `src/main/resources/application.properties` (or externalize them through environment variables):
-
-```properties
-spring.mail.host=smtp.example.com
-spring.mail.port=587
-spring.mail.username=your_email@example.com
-spring.mail.password=your_email_password
-spring.mail.properties.mail.smtp.auth=true
-spring.mail.properties.mail.smtp.starttls.enable=true
-password.reset.code.expiration-minutes=15
-```
-
-Replace the placeholder values with the credentials provided by your email service.
-
-
-
-Of course. Here are the instructions for exporting the database, which have been added to the README file.
-
-
-
-## Database Collaboration
-
-
-
-To facilitate team collaboration and data synchronization, you can use the `mysqldump` utility to export and import the database.
-
-
-
-### Exporting the Database
+Start all microservices and infrastructure with a single command:
 
 ```bash
-mysqldump -u [username] -p [database_name] > backup.sql
+# 1. Clone the repository
+git clone <repository-url>
+cd nushungry-Backend
+
+# 2. Copy environment variables template
+cp .env.example .env
+
+# 3. Start all services
+docker-compose up -d
+
+# 4. Check service health
+docker-compose ps
 ```
 
-After executing the command, you will be prompted to enter your password. Upon success, a `backup.sql` file will be generated in the current directory.
+**Service URLs:**
+- Admin Service: http://localhost:8082
+- Cafeteria Service: http://localhost:8083
+- Review Service: http://localhost:8084
+- Media Service: http://localhost:8085
+- Preference Service: http://localhost:8086
+- RabbitMQ Management: http://localhost:15672 (guest/guest)
+- MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
 
-**Example:**
+### 🔧 Option 2: Run Individual Services
+
+Each service can be run independently for development:
 
 ```bash
-mysqldump -u root -p nushungry_db > nushungry_db_backup.sql
+# Example: Run cafeteria-service
+cd cafeteria-service
+./scripts/start-services.sh  # Linux/Mac
+# or
+.\scripts\start-services.bat  # Windows
 ```
 
-## Password Reset API
+Refer to each service's `DEPLOYMENT.md` for detailed instructions.
 
-- `POST /api/auth/forgot-password`: Accepts an email address, generates a six-digit verification code with a 15-minute expiration, persists it, and emails the code to the user.
-- `POST /api/auth/reset-password`: Accepts email, verification code, and a new password; validates the code, updates the user's password, and marks the code as used.
+### 🛠️ Option 3: Manual Build & Run
 
-Both endpoints are publicly accessible so that users can initiate password recovery without prior authentication.
+```bash
+# Build all services
+mvn clean install -DskipTests
+
+# Run a specific service
+cd admin-service
+mvn spring-boot:run
+```
+
+### 📊 Verify Deployment
+
+```bash
+# Health checks
+curl http://localhost:8082/actuator/health  # admin-service
+curl http://localhost:8083/actuator/health  # cafeteria-service
+curl http://localhost:8084/actuator/health  # review-service
+curl http://localhost:8085/actuator/health  # media-service
+curl http://localhost:8086/actuator/health  # preference-service
+```
+
+### 🗄️ Database Initialization
+
+Databases are automatically initialized when services start. To manually initialize:
+
+```bash
+# Run initialization scripts (if needed)
+cd <service-name>/scripts
+psql -U postgres -d <database-name> -f init_<service>_db.sql
+```
+
+---
+
+## 📁 Project Structure
+
+```
+nushungry-Backend/
+├── admin-service/               # User management & authentication
+│   ├── src/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── DEPLOYMENT.md
+│   └── scripts/
+│       ├── init_admin_db.sql
+│       ├── MIGRATION_GUIDE.md
+│       └── start-services.sh/bat
+│
+├── cafeteria-service/           # Cafeteria & stall management
+│   ├── src/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── DEPLOYMENT.md
+│   └── scripts/
+│       ├── init_cafeteria_db.sql
+│       ├── MIGRATION_GUIDE.md
+│       └── start-services.sh/bat
+│
+├── review-service/              # Reviews, likes & comments
+│   ├── src/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── DEPLOYMENT.md
+│   └── scripts/
+│       ├── migrate_reviews_to_mongodb.py
+│       ├── MIGRATION_GUIDE.md
+│       └── start-services.sh/bat
+│
+├── media-service/               # Image uploads & processing
+│   ├── src/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── DEPLOYMENT.md
+│   └── scripts/
+│       ├── init_media_db.sql
+│       ├── MIGRATION_GUIDE.md
+│       └── start-services.sh/bat
+│
+├── preference-service/          # Favorites & search history
+│   ├── src/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── DEPLOYMENT.md
+│   └── scripts/
+│       ├── init_preference_db.sql
+│       ├── MIGRATION_GUIDE.md
+│       └── start-services.sh/bat
+│
+├── src/                         # Legacy monolith (deprecated)
+├── docs/                        # System documentation
+│   ├── ARCHITECTURE.md          # Architecture details
+│   ├── DEVELOPMENT.md           # Development guide
+│   └── API_DOCUMENTATION.md     # API reference
+│
+├── scripts/                     # Global scripts
+│   ├── start-all-services.sh/bat
+│   └── stop-all-services.sh/bat
+│
+├── .github/workflows/           # CI/CD pipelines
+│   ├── ci.yml
+│   └── cd.yml
+│
+├── docker-compose.yml           # Global orchestration
+├── .env.example                 # Environment variables template
+├── pom.xml                      # Parent POM (optional)
+├── PROGRESS.md                  # Migration progress tracking
+└── README.md                    # This file
+```
+
+### Service Structure (Example: cafeteria-service)
+
+```
+cafeteria-service/
+├── src/
+│   ├── main/
+│   │   ├── java/com/nushungry/cafeteriaservice/
+│   │   │   ├── controller/       # REST endpoints
+│   │   │   ├── service/          # Business logic
+│   │   │   ├── repository/       # Data access
+│   │   │   ├── model/            # JPA entities
+│   │   │   ├── dto/              # Data transfer objects
+│   │   │   ├── event/            # RabbitMQ listeners
+│   │   │   ├── config/           # Configuration classes
+│   │   │   └── CafeteriaServiceApplication.java
+│   │   └── resources/
+│   │       ├── application.properties
+│   │       └── application-docker.properties
+│   └── test/
+│       └── java/                 # Unit & integration tests
+├── Dockerfile
+├── docker-compose.yml
+└── DEPLOYMENT.md
+```
+
+---
+
+## 📖 Documentation
+
+### Core Documents
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)**: Detailed system architecture, design patterns, and data flow
+- **[DEVELOPMENT.md](docs/DEVELOPMENT.md)**: Local development setup, coding standards, and best practices
+- **[API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md)**: Complete API reference for all services
+- **[PROGRESS.md](PROGRESS.md)**: Microservices migration progress and task tracking
+
+### Service-Specific Docs
+Each service has its own documentation:
+- **DEPLOYMENT.md**: Deployment instructions (local, Docker, AWS ECS)
+- **MIGRATION_GUIDE.md**: Database migration from monolith
+- **README.md**: Service-specific features and endpoints
+
+### API Documentation (Swagger)
+Access interactive API documentation when services are running:
+- Admin Service: http://localhost:8082/swagger-ui.html
+- Cafeteria Service: http://localhost:8083/swagger-ui.html
+- Review Service: http://localhost:8084/swagger-ui.html
+- Media Service: http://localhost:8085/swagger-ui.html
+- Preference Service: http://localhost:8086/swagger-ui.html
+
+---
+
+## 🧪 Testing
+
+### Run All Tests
+```bash
+# Run tests for all services
+mvn test
+
+# Run tests for a specific service
+cd cafeteria-service
+mvn test
+```
+
+### Test Coverage
+- **Unit Tests**: Controller, Service, Repository layers (>70% coverage)
+- **Integration Tests**: Full API flow, database interactions, event handling
+- **Custom Query Tests**: All `@Query` annotated repository methods
+
+### Run Integration Tests
+```bash
+mvn verify -P integration-tests
+```
+
+---
+
+## 🚢 Deployment
+
+### Local Development
+Use Docker Compose (see [Quick Start](#quick-start))
+
+### AWS ECS Production
+Refer to individual service `DEPLOYMENT.md` files for:
+- ECR image building and pushing
+- ECS task definition configuration
+- Service deployment and updates
+- Environment variable management
+
+### CI/CD Pipeline
+GitHub Actions automatically:
+- Runs tests on pull requests
+- Builds Docker images on merge to main
+- Deploys to AWS ECS (production)
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+# Database
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_password
+
+# RabbitMQ
+RABBITMQ_USER=guest
+RABBITMQ_PASSWORD=guest
+
+# MinIO
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
+
+# JWT
+JWT_SECRET=your-secret-key
+JWT_EXPIRATION=86400000
+```
+
+See `.env.example` for complete configuration options.
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+- Follow existing code structure and naming conventions
+- Write unit tests for new features (>70% coverage)
+- Update relevant documentation
+- Run `mvn test` before committing
+- Use meaningful commit messages
+
+---
+
+## 📝 License
+
+This project is part of the NUSHungry application for NUS students.
+
+---
+
+## 📧 Support
+
+For issues, questions, or contributions:
+- Create an issue in the repository
+- Contact the development team
+
+---
+
+## 🗺️ Roadmap
+
+### Completed ✅
+- Microservices architecture implementation
+- Docker containerization
+- Event-driven communication (RabbitMQ)
+- Comprehensive testing suite
+- CI/CD pipeline setup
+
+### In Progress 🚧
+- API Gateway integration
+- Service discovery (Eureka)
+- Distributed tracing (Zipkin)
+
+### Planned 📋
+- Kubernetes deployment
+- Centralized logging (ELK Stack)
+- Monitoring & alerting (Prometheus + Grafana)
+- Rate limiting & circuit breakers

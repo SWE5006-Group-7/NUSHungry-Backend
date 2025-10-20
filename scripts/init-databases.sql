@@ -1,0 +1,12 @@
+-- 创建所有微服务需要的数据库
+
+CREATE DATABASE IF NOT EXISTS admin_db;
+CREATE DATABASE IF NOT EXISTS cafeteria_db;
+CREATE DATABASE IF NOT EXISTS media_db;
+CREATE DATABASE IF NOT EXISTS preference_db;
+
+-- 授权
+GRANT ALL PRIVILEGES ON DATABASE admin_db TO postgres;
+GRANT ALL PRIVILEGES ON DATABASE cafeteria_db TO postgres;
+GRANT ALL PRIVILEGES ON DATABASE media_db TO postgres;
+GRANT ALL PRIVILEGES ON DATABASE preference_db TO postgres;
