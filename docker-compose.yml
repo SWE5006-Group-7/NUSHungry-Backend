@@ -85,6 +85,65 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis - 缓存和限流 (Gateway Service)
+  redis:
+    image: redis:7-alpine
+    container_name: nushungry-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - nushungry-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Zipkin - 分布式追踪
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: nushungry-zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - nushungry-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9411/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      - STORAGE_TYPE=mem
+
+  # Eureka Server - 服务注册与发现
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_SECURITY_USER_NAME: ${EUREKA_USERNAME:-eureka}
+      SPRING_SECURITY_USER_PASSWORD: ${EUREKA_PASSWORD:-eureka}
+      SERVER_PORT: 8761
+      EUREKA_CLIENT_REGISTER_WITH_EUREKA: "false"
+      EUREKA_CLIENT_FETCH_REGISTRY: "false"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: 1.0
+    ports:
+      - "8761:8761"
+    networks:
+      - nushungry-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # ==================== 微服务 ====================
 
   # Admin Service
@@ -95,6 +154,7 @@ services:
     container_name: admin-service
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_APPLICATION_NAME: admin-service
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/admin_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -103,9 +163,15 @@ services:
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: 1.0
     ports:
       - "8082:8082"
     depends_on:
+      eureka-server:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -127,6 +193,7 @@ services:
     container_name: cafeteria-service
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_APPLICATION_NAME: cafeteria-service
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/cafeteria_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -134,9 +201,15 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: 1.0
     ports:
       - "8083:8083"
     depends_on:
+      eureka-server:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -158,14 +231,21 @@ services:
     container_name: review-service
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_APPLICATION_NAME: review-service
       SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-admin123}@mongodb:27017/review_db?authSource=admin
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-guest}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: 1.0
     ports:
       - "8084:8084"
     depends_on:
+      eureka-server:
+        condition: service_healthy
       mongodb:
         condition: service_healthy
       rabbitmq:
@@ -187,6 +267,7 @@ services:
     container_name: media-service
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_APPLICATION_NAME: media-service
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/media_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -194,9 +275,15 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_USER:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_PASSWORD:-minioadmin}
       FILE_UPLOAD_DIR: /app/uploads
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: 1.0
     ports:
       - "8085:8085"
     depends_on:
+      eureka-server:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       minio:
@@ -220,18 +307,73 @@ services:
     container_name: preference-service
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_APPLICATION_NAME: preference-service
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/preference_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: 1.0
     ports:
       - "8086:8086"
     depends_on:
+      eureka-server:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     networks:
       - nushungry-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Gateway Service - API统一入口
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SPRING_APPLICATION_NAME: gateway-service
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://${EUREKA_USERNAME:-eureka}:${EUREKA_PASSWORD:-eureka}@eureka-server:8761/eureka/
+      EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: 1.0
+      # Service URLs (使用容器名称进行内部通信)
+      ADMIN_SERVICE_URL: http://admin-service:8082
+      CAFETERIA_SERVICE_URL: http://cafeteria-service:8083
+      REVIEW_SERVICE_URL: http://review-service:8084
+      MEDIA_SERVICE_URL: http://media-service:8085
+      PREFERENCE_SERVICE_URL: http://preference-service:8086
+    ports:
+      - "8080:8080"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      admin-service:
+        condition: service_healthy
+      cafeteria-service:
+        condition: service_healthy
+      review-service:
+        condition: service_healthy
+      media-service:
+        condition: service_healthy
+      preference-service:
+        condition: service_healthy
+    networks:
+      - nushungry-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -247,3 +389,4 @@ volumes:
   rabbitmq_data:
   minio_data:
   media_uploads:
+  redis_data:

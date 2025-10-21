@@ -1,0 +1,15 @@
+# Kubernetes Secrets (不要提交到 Git)
+base/secrets.yaml
+overlays/*/secrets.yaml
+
+# Helm 值文件 (生产环境密码)
+charts/nushungry/values-prod.yaml
+charts/nushungry/values-production.yaml
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Kustomize build output
+kustomization-output.yaml

@@ -1,0 +1,144 @@
+---
+# Eureka Server Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka-server
+  namespace: nushungry
+  labels:
+    app: eureka-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8761
+    targetPort: 8761
+    protocol: TCP
+    name: http
+  selector:
+    app: eureka-server
+---
+# Config Server Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+  namespace: nushungry
+  labels:
+    app: config-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8888
+    targetPort: 8888
+    protocol: TCP
+    name: http
+  selector:
+    app: config-server
+---
+# Gateway Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-service
+  namespace: nushungry
+  labels:
+    app: gateway-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: gateway-service
+---
+# Admin Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-service
+  namespace: nushungry
+  labels:
+    app: admin-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8082
+    targetPort: 8082
+    protocol: TCP
+    name: http
+  selector:
+    app: admin-service
+---
+# Cafeteria Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: cafeteria-service
+  namespace: nushungry
+  labels:
+    app: cafeteria-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8083
+    targetPort: 8083
+    protocol: TCP
+    name: http
+  selector:
+    app: cafeteria-service
+---
+# Review Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: review-service
+  namespace: nushungry
+  labels:
+    app: review-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8084
+    targetPort: 8084
+    protocol: TCP
+    name: http
+  selector:
+    app: review-service
+---
+# Media Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: media-service
+  namespace: nushungry
+  labels:
+    app: media-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8085
+    targetPort: 8085
+    protocol: TCP
+    name: http
+  selector:
+    app: media-service
+---
+# Preference Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: preference-service
+  namespace: nushungry
+  labels:
+    app: preference-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8086
+    targetPort: 8086
+    protocol: TCP
+    name: http
+  selector:
+    app: preference-service

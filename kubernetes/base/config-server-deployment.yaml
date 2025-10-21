@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+  namespace: nushungry
+  labels:
+    app: config-server
+    tier: infrastructure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-server
+  template:
+    metadata:
+      labels:
+        app: config-server
+        tier: infrastructure
+    spec:
+      containers:
+      - name: config-server
+        image: nushungry/config-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8888
+          name: http
+          protocol: TCP
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: SPRING_CLOUD_CONFIG_SERVER_GIT_URI
+          value: "file:///config-repo"
+        - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+          value: "http://eureka-server:8761/eureka/"
+        - name: SPRING_SECURITY_USER_NAME
+          valueFrom:
+            secretKeyRef:
+              name: config-server-secret
+              key: username
+        - name: SPRING_SECURITY_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: config-server-secret
+              key: password
+        volumeMounts:
+        - name: config-repo
+          mountPath: /config-repo
+          readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8888
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: config-repo
+        configMap:
+          name: config-repo

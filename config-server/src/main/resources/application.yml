@@ -1,0 +1,71 @@
+server:
+  port: 8888
+
+spring:
+  application:
+    name: config-server
+
+  cloud:
+    config:
+      server:
+        git:
+          # Git repository URI - can be local or remote
+          # For local development, use file:// protocol (pointing to config-repo in project)
+          # For production, use https:// or git@
+          uri: ${CONFIG_GIT_URI:file:///${user.dir}/../config-repo}
+          # Clone repository on startup
+          clone-on-start: true
+          # Default label (branch) to use
+          default-label: ${CONFIG_GIT_BRANCH:main}
+          # Search paths within the repository
+          search-paths: '{application}'
+          # Timeout for git operations (ms)
+          timeout: 10
+          # Force pull from remote on every request (disable for local development)
+          force-pull: ${CONFIG_FORCE_PULL:false}
+
+        # Native profile for local file system (development only)
+        native:
+          search-locations: classpath:/config/
+
+  # Security configuration
+  security:
+    user:
+      name: ${CONFIG_SERVER_USERNAME:config}
+      password: ${CONFIG_SERVER_PASSWORD:config123}
+
+# Eureka Client Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://eureka:eureka@localhost:8761/eureka/}
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,refresh
+  endpoint:
+    health:
+      show-details: always
+  health:
+    defaults:
+      enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.nushungry: DEBUG
+    org.springframework.cloud.config: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

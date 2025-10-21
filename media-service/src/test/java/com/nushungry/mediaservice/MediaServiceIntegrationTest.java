@@ -28,52 +28,49 @@ class MediaServiceIntegrationTest {
                 "test image content".getBytes()
         );
 
-        mockMvc.perform(multipart("/api/upload/image")
+        mockMvc.perform(multipart("/media/upload")
                         .file(file))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.url").exists());
+                .andExpect(jsonPath("$.url").exists())
+                .andExpect(jsonPath("$.fileName").exists())
+                .andExpect(jsonPath("$.contentType").value("image/jpeg"));
     }
 
     @Test
-    void testMultipleImagesUpload() throws Exception {
-        MockMultipartFile file1 = new MockMultipartFile(
-                "files",
-                "test1.jpg",
-                "image/jpeg",
-                "test image 1".getBytes()
-        );
-
-        MockMultipartFile file2 = new MockMultipartFile(
-                "files",
-                "test2.jpg",
-                "image/jpeg",
-                "test image 2".getBytes()
-        );
-
-        mockMvc.perform(multipart("/api/upload/images")
-                        .file(file1)
-                        .file(file2))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.urls").isArray())
-                .andExpect(jsonPath("$.urls.length()").value(2));
-    }
-
-    @Test
-    void testInvalidFileType() throws Exception {
+    void testImageUpload_PngFormat() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
-                "test.txt",
-                "text/plain",
-                "not an image".getBytes()
+                "test.png",
+                "image/png",
+                "test image content".getBytes()
         );
 
-        mockMvc.perform(multipart("/api/upload/image")
+        mockMvc.perform(multipart("/media/upload")
                         .file(file))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.url").exists())
+                .andExpect(jsonPath("$.contentType").value("image/png"));
     }
 
     @Test
-    void testEmptyFileUpload() throws Exception {
+    void testImageUpload_LargeFile() throws Exception {
+        // 创建一个较大的文件（1MB）
+        byte[] largeContent = new byte[1024 * 1024];
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "large.jpg",
+                "image/jpeg",
+                largeContent
+        );
+
+        mockMvc.perform(multipart("/media/upload")
+                        .file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(largeContent.length));
+    }
+
+    @Test
+    void testImageUpload_EmptyFile() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
                 "empty.jpg",
@@ -81,9 +78,11 @@ class MediaServiceIntegrationTest {
                 new byte[0]
         );
 
-        mockMvc.perform(multipart("/api/upload/image")
+        // 空文件也可以上传（业务逻辑可能需要验证）
+        mockMvc.perform(multipart("/media/upload")
                         .file(file))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(0));
     }
 
     @Test

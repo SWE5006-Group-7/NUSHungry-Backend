@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  eureka-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      # Spring profiles
+      - SPRING_PROFILES_ACTIVE=docker
+
+      # Security credentials
+      - SPRING_SECURITY_USER_NAME=${EUREKA_USERNAME:-eureka}
+      - SPRING_SECURITY_USER_PASSWORD=${EUREKA_PASSWORD:-eureka}
+
+      # Server configuration
+      - SERVER_PORT=8761
+
+      # Eureka server settings
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+      - EUREKA_SERVER_ENABLE_SELF_PRESERVATION=true
+
+      # Logging
+      - LOGGING_LEVEL_COM_NETFLIX_EUREKA=INFO
+      - LOGGING_LEVEL_COM_NETFLIX_DISCOVERY=INFO
+
+    networks:
+      - nushungry-network
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    volumes:
+      - eureka-data:/app/data
+
+    labels:
+      com.nushungry.service: "eureka-server"
+      com.nushungry.description: "Service Registry and Discovery"
+
+networks:
+  nushungry-network:
+    driver: bridge
+
+volumes:
+  eureka-data:
+    driver: local

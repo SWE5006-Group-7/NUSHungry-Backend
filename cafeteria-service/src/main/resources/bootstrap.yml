@@ -1,0 +1,24 @@
+# ============================================
+# Bootstrap Configuration for Cafeteria Service
+# ============================================
+# This file is loaded BEFORE application.yml/properties
+# It connects to Config Server to fetch centralized configuration
+
+spring:
+  application:
+    name: cafeteria-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  cloud:
+    config:
+      uri: ${CONFIG_SERVER_URI:http://localhost:8888}
+      username: ${CONFIG_SERVER_USERNAME:config}
+      password: ${CONFIG_SERVER_PASSWORD:config123}
+      fail-fast: true
+      retry:
+        max-attempts: 6
+        initial-interval: 1000
+        multiplier: 1.1
+        max-interval: 2000

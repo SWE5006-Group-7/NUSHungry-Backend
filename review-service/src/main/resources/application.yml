@@ -4,7 +4,7 @@ server:
 spring:
   application:
     name: review-service
-  
+
   # MongoDB Configuration
   data:
     mongodb:
@@ -12,7 +12,7 @@ spring:
       port: 27017
       database: nushungry_reviews
       auto-index-creation: true
-  
+
   # RabbitMQ Configuration
   rabbitmq:
     host: localhost
@@ -23,6 +23,16 @@ spring:
     publisher-returns: true
     template:
       mandatory: true
+
+# Eureka Client Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka:eureka@localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
 
 # Actuator Configuration
 management:

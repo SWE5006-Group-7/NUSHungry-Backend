@@ -1,0 +1,78 @@
+# PersistentVolume for Media Service (file storage)
+# Note: This example uses hostPath for development.
+# For production, use cloud provider storage (AWS EBS, GCP PD, Azure Disk, etc.)
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: media-storage-pv
+  labels:
+    type: local
+    app: media-service
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: "/mnt/data/nushungry/media"
+    type: DirectoryOrCreate
+---
+# PersistentVolumeClaim for Media Service
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-storage-pvc
+  namespace: nushungry
+  labels:
+    app: media-service
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  selector:
+    matchLabels:
+      app: media-service
+---
+# StorageClass for dynamic provisioning (example for AWS EBS)
+# Uncomment and modify for your cloud provider
+# apiVersion: storage.k8s.io/v1
+# kind: StorageClass
+# metadata:
+#   name: nushungry-ssd
+# provisioner: kubernetes.io/aws-ebs
+# parameters:
+#   type: gp3
+#   fsType: ext4
+#   encrypted: "true"
+# allowVolumeExpansion: true
+# volumeBindingMode: WaitForFirstConsumer
+---
+# StorageClass for GCP Persistent Disk (example)
+# apiVersion: storage.k8s.io/v1
+# kind: StorageClass
+# metadata:
+#   name: nushungry-ssd-gcp
+# provisioner: kubernetes.io/gce-pd
+# parameters:
+#   type: pd-ssd
+#   replication-type: regional-pd
+# allowVolumeExpansion: true
+# volumeBindingMode: WaitForFirstConsumer
+---
+# StorageClass for Azure Disk (example)
+# apiVersion: storage.k8s.io/v1
+# kind: StorageClass
+# metadata:
+#   name: nushungry-ssd-azure
+# provisioner: kubernetes.io/azure-disk
+# parameters:
+#   storageaccounttype: Premium_LRS
+#   kind: Managed
+# allowVolumeExpansion: true
+# volumeBindingMode: WaitForFirstConsumer

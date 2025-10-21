@@ -1,0 +1,69 @@
+filebeat.inputs:
+  # Docker容器日志收集
+  - type: container
+    enabled: true
+    paths:
+      - '/var/lib/docker/containers/*/*.log'
+
+    # 仅收集NUSHungry微服务的日志
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+
+      - decode_json_fields:
+          fields: ["message"]
+          target: "log"
+          overwrite_keys: true
+
+      # 过滤：仅收集nushungry相关容器
+      - drop_event:
+          when:
+            not:
+              contains:
+                container.name: "nushungry"
+
+  # 文件日志收集（可选 - 用于非Docker部署）
+  - type: log
+    enabled: false
+    paths:
+      - /var/log/nushungry/*.log
+    fields:
+      log_type: file
+    json.keys_under_root: true
+    json.add_error_key: true
+
+# 处理器
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+
+# 输出到Logstash
+output.logstash:
+  hosts: ["logstash:5044"]
+
+# 输出到Elasticsearch（直接输出，不经过Logstash）
+# output.elasticsearch:
+#   hosts: ["elasticsearch:9200"]
+#   indices:
+#     - index: "nushungry-logs-%{+yyyy.MM.dd}"
+
+# 日志配置
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
+
+# Kibana配置（用于导入仪表盘）
+setup.kibana:
+  host: "kibana:5601"
+
+# 索引模板设置
+setup.template.name: "nushungry-logs"
+setup.template.pattern: "nushungry-logs-*"
+setup.template.enabled: true
+setup.template.overwrite: false

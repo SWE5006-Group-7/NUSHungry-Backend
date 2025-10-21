@@ -1,0 +1,23 @@
+apiVersion: v2
+name: nushungry
+description: A Helm chart for NUSHungry microservices platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - microservices
+  - spring-boot
+  - cafeteria
+  - review
+  - nushungry
+home: https://github.com/SWE5006-Group-7/nushungry-Backend
+sources:
+  - https://github.com/SWE5006-Group-7/nushungry-Backend
+maintainers:
+  - name: NUSHungry Team
+    email: team@nushungry.com
+
+dependencies: []
+
+# annotations:
+#   category: Application

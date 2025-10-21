@@ -1,0 +1,357 @@
+# Default values for nushungry microservices
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global settings
+global:
+  namespace: nushungry
+  environment: production
+  timezone: Asia/Singapore
+  imageRegistry: docker.io
+  imagePullSecrets: []
+  storageClass: ""
+
+# Namespace configuration
+namespace:
+  create: true
+  name: nushungry
+
+# Image pull policy
+imagePullPolicy: Always
+
+# Eureka Server
+eurekaServer:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: nushungry/eureka-server
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8761
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# Config Server
+configServer:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: nushungry/config-server
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8888
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# Gateway Service
+gatewayService:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: nushungry/gateway-service
+    tag: latest
+  service:
+    type: LoadBalancer
+    port: 80
+    targetPort: 8080
+  resources:
+    requests:
+      memory: "768Mi"
+      cpu: "500m"
+    limits:
+      memory: "1.5Gi"
+      cpu: "1000m"
+
+# Admin Service
+adminService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: nushungry/admin-service
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8082
+  resources:
+    requests:
+      memory: "768Mi"
+      cpu: "500m"
+    limits:
+      memory: "1.5Gi"
+      cpu: "1000m"
+
+# Cafeteria Service
+cafeteriaService:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: nushungry/cafeteria-service
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8083
+  resources:
+    requests:
+      memory: "768Mi"
+      cpu: "500m"
+    limits:
+      memory: "1.5Gi"
+      cpu: "1000m"
+
+# Review Service
+reviewService:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: nushungry/review-service
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8084
+  resources:
+    requests:
+      memory: "768Mi"
+      cpu: "500m"
+    limits:
+      memory: "1.5Gi"
+      cpu: "1000m"
+
+# Media Service
+mediaService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: nushungry/media-service
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8085
+  resources:
+    requests:
+      memory: "768Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 20Gi
+
+# Preference Service
+preferenceService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: nushungry/preference-service
+    tag: latest
+  service:
+    type: ClusterIP
+    port: 8086
+  resources:
+    requests:
+      memory: "768Mi"
+      cpu: "500m"
+    limits:
+      memory: "1.5Gi"
+      cpu: "1000m"
+
+# PostgreSQL databases
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 15-alpine
+
+  # Admin DB
+  admin:
+    enabled: true
+    database: admin_db
+    persistence:
+      size: 5Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Cafeteria DB
+  cafeteria:
+    enabled: true
+    database: cafeteria_db
+    persistence:
+      size: 5Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Media DB
+  media:
+    enabled: true
+    database: media_db
+    persistence:
+      size: 10Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+  # Preference DB
+  preference:
+    enabled: true
+    database: preference_db
+    persistence:
+      size: 5Gi
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+
+# MongoDB
+mongodb:
+  enabled: true
+  image:
+    repository: mongo
+    tag: "7.0"
+  database: review_db
+  persistence:
+    size: 10Gi
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# Redis
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: 7-alpine
+  persistence:
+    enabled: true
+    size: 2Gi
+  maxmemory: 512mb
+  maxmemoryPolicy: allkeys-lru
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# RabbitMQ
+rabbitmq:
+  enabled: true
+  image:
+    repository: rabbitmq
+    tag: 3-management-alpine
+  persistence:
+    enabled: true
+    size: 5Gi
+  management:
+    enabled: true
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# Ingress
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: api.nushungry.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: nushungry.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: nushungry-tls-cert
+      hosts:
+        - nushungry.example.com
+        - api.nushungry.example.com
+
+# Secrets (values will be base64 encoded in templates)
+secrets:
+  jwt:
+    secret: "CHANGE_ME_JWT_SECRET_KEY_AT_LEAST_256_BITS"
+
+  configServer:
+    username: "config-user"
+    password: "CHANGE_ME_CONFIG_PASSWORD"
+
+  postgresql:
+    admin:
+      username: "admin_user"
+      password: "CHANGE_ME_ADMIN_DB_PASSWORD"
+    cafeteria:
+      username: "cafeteria_user"
+      password: "CHANGE_ME_CAFETERIA_DB_PASSWORD"
+    media:
+      username: "media_user"
+      password: "CHANGE_ME_MEDIA_DB_PASSWORD"
+    preference:
+      username: "preference_user"
+      password: "CHANGE_ME_PREFERENCE_DB_PASSWORD"
+
+  mongodb:
+    username: "review_user"
+    password: "CHANGE_ME_MONGODB_PASSWORD"
+
+  redis:
+    password: "CHANGE_ME_REDIS_PASSWORD"
+
+  rabbitmq:
+    username: "guest"
+    password: "CHANGE_ME_RABBITMQ_PASSWORD"
+    erlangCookie: "CHANGE_ME_ERLANG_COOKIE"
+
+# Monitoring
+monitoring:
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
+  zipkin:
+    enabled: true

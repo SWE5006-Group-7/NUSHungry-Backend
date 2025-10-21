@@ -1,0 +1,200 @@
+# Service Alert Rules for NUSHungry Microservices
+# ================================================
+
+groups:
+  # 服务可用性告警
+  - name: service_availability
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} ({{ $labels.instance }}) has been down for more than 1 minute."
+
+      - alert: ServiceInstanceDown
+        expr: up{job=~".*-service"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: availability
+        annotations:
+          summary: "Service instance {{ $labels.instance }} is down"
+          description: "Instance {{ $labels.instance }} of service {{ $labels.job }} has been down for more than 2 minutes."
+
+  # 高错误率告警
+  - name: error_rate
+    interval: 1m
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (application)
+            /
+            sum(rate(http_server_requests_seconds_count[5m])) by (application)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: errors
+        annotations:
+          summary: "High error rate detected in {{ $labels.application }}"
+          description: "Service {{ $labels.application }} has error rate above 5% (current: {{ $value | humanizePercentage }})"
+
+      - alert: CriticalErrorRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (application)
+            /
+            sum(rate(http_server_requests_seconds_count[5m])) by (application)
+          ) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+          category: errors
+        annotations:
+          summary: "Critical error rate in {{ $labels.application }}"
+          description: "Service {{ $labels.application }} has error rate above 10% (current: {{ $value | humanizePercentage }})"
+
+  # 性能降级告警
+  - name: performance_degradation
+    interval: 1m
+    rules:
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket[5m])) by (application, le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High response time in {{ $labels.application }}"
+          description: "95th percentile response time is above 2 seconds (current: {{ $value }}s)"
+
+      - alert: SlowResponseTime
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_server_requests_seconds_bucket[5m])) by (application, le)
+          ) > 5
+        for: 3m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "Extremely slow response time in {{ $labels.application }}"
+          description: "99th percentile response time is above 5 seconds (current: {{ $value }}s)"
+
+  # 资源使用告警
+  - name: resource_usage
+    interval: 1m
+    rules:
+      - alert: HighMemoryUsage
+        expr: |
+          (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High memory usage in {{ $labels.application }}"
+          description: "JVM heap memory usage is above 85% (current: {{ $value | humanizePercentage }})"
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          (jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"}) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          category: resources
+        annotations:
+          summary: "Critical memory usage in {{ $labels.application }}"
+          description: "JVM heap memory usage is above 95% (current: {{ $value | humanizePercentage }}). Service may run out of memory soon."
+
+      - alert: HighCPUUsage
+        expr: |
+          process_cpu_usage > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High CPU usage in {{ $labels.application }}"
+          description: "CPU usage is above 85% (current: {{ $value | humanizePercentage }})"
+
+  # 线程池告警
+  - name: thread_pool
+    interval: 1m
+    rules:
+      - alert: ThreadPoolExhaustion
+        expr: |
+          (
+            jvm_threads_live_threads
+            /
+            jvm_threads_peak_threads
+          ) > 0.90
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "Thread pool near exhaustion in {{ $labels.application }}"
+          description: "Thread usage is above 90% of peak (current: {{ $value | humanizePercentage }})"
+
+  # 数据库连接池告警
+  - name: database
+    interval: 1m
+    rules:
+      - alert: DatabaseConnectionPoolLow
+        expr: |
+          (
+            hikaricp_connections_active
+            /
+            hikaricp_connections_max
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Database connection pool near limit in {{ $labels.application }}"
+          description: "Database connection pool usage is above 85% (current: {{ $value | humanizePercentage }})"
+
+  # 请求量告警
+  - name: traffic
+    interval: 1m
+    rules:
+      - alert: UnusualTrafficSpike
+        expr: |
+          (
+            rate(http_server_requests_seconds_count[5m])
+            /
+            avg_over_time(rate(http_server_requests_seconds_count[5m])[1h:5m])
+          ) > 3
+        for: 5m
+        labels:
+          severity: info
+          category: traffic
+        annotations:
+          summary: "Unusual traffic spike in {{ $labels.application }}"
+          description: "Request rate is 3x higher than usual (current multiplier: {{ $value }})"
+
+      - alert: TrafficDrop
+        expr: |
+          (
+            rate(http_server_requests_seconds_count[5m])
+            /
+            avg_over_time(rate(http_server_requests_seconds_count[5m])[1h:5m])
+          ) < 0.3
+        for: 10m
+        labels:
+          severity: warning
+          category: traffic
+        annotations:
+          summary: "Significant traffic drop in {{ $labels.application }}"
+          description: "Request rate is less than 30% of usual (current multiplier: {{ $value }})"

@@ -1,25 +1,119 @@
-name: Deploy to Amazon ECS
+name: Deploy Microservices to Amazon ECS
 
 on:
   push:
-    branches: [ "feat/complete-backend-cicd" ]
+    branches: [ "main", "microservice/**" ]
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to deploy (comma-separated, or "all")'
+        required: false
+        default: 'all'
 
 env:
-  AWS_REGION: ap-southeast-1                # set this to your preferred AWS region, e.g. us-west-1
-  ECR_REPOSITORY: nushungry/monolith-backend          # set this to your Amazon ECR repository name
-  ECS_SERVICE: nushungry-dev-backend-service              # set this to your Amazon ECS service name
-  ECS_CLUSTER: nushungry-dev-cluster            # set this to your Amazon ECS cluster name
-  ECS_TASK_DEFINITION: .aws/task-definition.json # set this to the path to your Amazon ECS task definition
-  CONTAINER_NAME: nushungry-dev-backend           # set this to the name of the container in the
+  AWS_REGION: ap-southeast-1
 
 permissions:
   contents: read
 
 jobs:
+  # Detect which services changed
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      admin-service: ${{ steps.filter.outputs.admin-service }}
+      cafeteria-service: ${{ steps.filter.outputs.cafeteria-service }}
+      media-service: ${{ steps.filter.outputs.media-service }}
+      preference-service: ${{ steps.filter.outputs.preference-service }}
+      review-service: ${{ steps.filter.outputs.review-service }}
+      gateway-service: ${{ steps.filter.outputs.gateway-service }}
+      eureka-server: ${{ steps.filter.outputs.eureka-server }}
+      deploy-all: ${{ steps.check-deploy-all.outputs.deploy-all }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check if deploy all services
+        id: check-deploy-all
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.services }}" == "all" ]] || [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "deploy-all=true" >> $GITHUB_OUTPUT
+          else
+            echo "deploy-all=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            admin-service:
+              - 'admin-service/**'
+            cafeteria-service:
+              - 'cafeteria-service/**'
+            media-service:
+              - 'media-service/**'
+            preference-service:
+              - 'preference-service/**'
+            review-service:
+              - 'review-service/**'
+            gateway-service:
+              - 'gateway-service/**'
+            eureka-server:
+              - 'eureka-server/**'
+
+  # Deploy microservices in parallel
   deploy:
-    name: Deploy
+    name: Deploy ${{ matrix.service.name }}
     runs-on: ubuntu-latest
     environment: dev
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.deploy-all == 'true' ||
+      (matrix.service.name == 'admin-service' && needs.detect-changes.outputs.admin-service == 'true') ||
+      (matrix.service.name == 'cafeteria-service' && needs.detect-changes.outputs.cafeteria-service == 'true') ||
+      (matrix.service.name == 'media-service' && needs.detect-changes.outputs.media-service == 'true') ||
+      (matrix.service.name == 'preference-service' && needs.detect-changes.outputs.preference-service == 'true') ||
+      (matrix.service.name == 'review-service' && needs.detect-changes.outputs.review-service == 'true') ||
+      (matrix.service.name == 'gateway-service' && needs.detect-changes.outputs.gateway-service == 'true') ||
+      (matrix.service.name == 'eureka-server' && needs.detect-changes.outputs.eureka-server == 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: admin-service
+            ecr_repo: nushungry/admin-service
+            ecs_service: nushungry-dev-admin-service
+            task_def: .aws/task-definitions/admin-service.json
+            container: admin-service
+          - name: cafeteria-service
+            ecr_repo: nushungry/cafeteria-service
+            ecs_service: nushungry-dev-cafeteria-service
+            task_def: .aws/task-definitions/cafeteria-service.json
+            container: cafeteria-service
+          - name: media-service
+            ecr_repo: nushungry/media-service
+            ecs_service: nushungry-dev-media-service
+            task_def: .aws/task-definitions/media-service.json
+            container: media-service
+          - name: preference-service
+            ecr_repo: nushungry/preference-service
+            ecs_service: nushungry-dev-preference-service
+            task_def: .aws/task-definitions/preference-service.json
+            container: preference-service
+          - name: review-service
+            ecr_repo: nushungry/review-service
+            ecs_service: nushungry-dev-review-service
+            task_def: .aws/task-definitions/review-service.json
+            container: review-service
+          - name: gateway-service
+            ecr_repo: nushungry/gateway-service
+            ecs_service: nushungry-dev-gateway-service
+            task_def: .aws/task-definitions/gateway-service.json
+            container: gateway-service
+          - name: eureka-server
+            ecr_repo: nushungry/eureka-server
+            ecs_service: nushungry-dev-eureka-server
+            task_def: .aws/task-definitions/eureka-server.json
+            container: eureka-server
 
     steps:
       - name: Checkout
@@ -38,7 +132,7 @@ jobs:
         with:
           mask-password: 'true'
       
-      - name: Package
+      - name: Setup Java
         uses: actions/setup-java@v5
         with:
           java-version: '17'
@@ -51,26 +145,26 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Build a docker container and
-          # push it to ECR so that it can
-          # be deployed to ECS.
+          cd ${{ matrix.service.name }}
           mvn package -DskipTests
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          docker build -t $ECR_REGISTRY/${{ matrix.service.ecr_repo }}:$IMAGE_TAG -f Dockerfile .
+          docker push $ECR_REGISTRY/${{ matrix.service.ecr_repo }}:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/${{ matrix.service.ecr_repo }}:$IMAGE_TAG $ECR_REGISTRY/${{ matrix.service.ecr_repo }}:latest
+          docker push $ECR_REGISTRY/${{ matrix.service.ecr_repo }}:latest
+          echo "image=$ECR_REGISTRY/${{ matrix.service.ecr_repo }}:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ${{ env.ECS_TASK_DEFINITION }}
-          container-name: ${{ env.CONTAINER_NAME }}
+          task-definition: ${{ matrix.service.task_def }}
+          container-name: ${{ matrix.service.container }}
           image: ${{ steps.build-image.outputs.image }}
 
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{ matrix.service.ecs_service }}
+          cluster: nushungry-dev-cluster
           wait-for-service-stability: true

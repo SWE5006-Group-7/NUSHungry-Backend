@@ -1,0 +1,103 @@
+# ============================================
+# Docker Compose for Monitoring Stack
+# Prometheus + Grafana
+# ============================================
+
+version: '3.8'
+
+networks:
+  monitoring:
+    driver: bridge
+  nushungry:
+    external: true  # 连接到主应用网络
+
+volumes:
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+services:
+  # Prometheus 监控服务器
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: nushungry-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+      - nushungry
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "com.nushungry.description=Prometheus monitoring server"
+
+  # Grafana 可视化平台
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: nushungry-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - monitoring
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/dashboards/nushungry-overview.json
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    labels:
+      - "com.nushungry.description=Grafana visualization platform"
+
+  # AlertManager (可选 - 用于告警通知)
+  # alertmanager:
+  #   image: prom/alertmanager:v0.26.0
+  #   container_name: nushungry-alertmanager
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9093:9093"
+  #   networks:
+  #     - monitoring
+  #   volumes:
+  #     - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+  #   command:
+  #     - '--config.file=/etc/alertmanager/alertmanager.yml'
+  #     - '--storage.path=/alertmanager'
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3

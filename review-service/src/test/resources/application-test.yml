@@ -1,4 +1,9 @@
 spring:
+  cloud:
+    config:
+      # Disable Config Client in tests
+      enabled: false
+
   data:
     mongodb:
       # Use embedded MongoDB for testing

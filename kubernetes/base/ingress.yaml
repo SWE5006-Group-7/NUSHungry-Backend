@@ -1,0 +1,152 @@
+# Ingress configuration for NUSHungry microservices
+# Requires an Ingress Controller (e.g., NGINX Ingress Controller, Traefik, etc.)
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nushungry-ingress
+  namespace: nushungry
+  annotations:
+    # NGINX Ingress Controller annotations
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+
+    # CORS settings
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+
+    # Timeout settings
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+
+    # Body size limit for media uploads
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+
+    # TLS/SSL certificate (cert-manager integration)
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+  labels:
+    app: nushungry
+spec:
+  tls:
+  - hosts:
+    - nushungry.example.com
+    - api.nushungry.example.com
+    secretName: nushungry-tls-cert
+
+  rules:
+  # Main API endpoint (via Gateway Service)
+  - host: api.nushungry.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-service
+            port:
+              number: 80
+
+  # Alternative: Direct domain routing
+  - host: nushungry.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway-service
+            port:
+              number: 80
+---
+# Ingress for Eureka Server (optional, for monitoring)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eureka-ingress
+  namespace: nushungry
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: eureka-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required - Eureka Server"
+  labels:
+    app: eureka-server
+spec:
+  tls:
+  - hosts:
+    - eureka.nushungry.example.com
+    secretName: eureka-tls-cert
+  rules:
+  - host: eureka.nushungry.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: eureka-server
+            port:
+              number: 8761
+---
+# Ingress for RabbitMQ Management UI (optional)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rabbitmq-management-ingress
+  namespace: nushungry
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: rabbitmq-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required - RabbitMQ Management"
+  labels:
+    app: rabbitmq
+spec:
+  tls:
+  - hosts:
+    - rabbitmq.nushungry.example.com
+    secretName: rabbitmq-tls-cert
+  rules:
+  - host: rabbitmq.nushungry.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rabbitmq-management
+            port:
+              number: 15672
+---
+# Basic Auth Secret for Eureka (example)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: eureka-basic-auth
+  namespace: nushungry
+type: Opaque
+data:
+  # Default: admin:admin (base64 encoded: admin:$apr1$...)
+  # Generate with: htpasswd -nb admin admin | base64
+  auth: YWRtaW46JGFwcjEkSFFTdFNUdU4kSGt2YnQ3c3djeGdINUZpZjdHSGRHLgo=
+---
+# Basic Auth Secret for RabbitMQ (example)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rabbitmq-basic-auth
+  namespace: nushungry
+type: Opaque
+data:
+  # Default: admin:admin (base64 encoded)
+  auth: YWRtaW46JGFwcjEkSFFTdFNUdU4kSGt2YnQ3c3djeGdINUZpZjdHSGRHLgo=

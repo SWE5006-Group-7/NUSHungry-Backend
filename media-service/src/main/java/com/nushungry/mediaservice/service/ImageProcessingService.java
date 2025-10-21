@@ -22,8 +22,16 @@ public class ImageProcessingService {
 
     public MediaFile storeFile(MultipartFile file) throws IOException {
         String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
-        String basePath = System.getProperty("user.dir");
-        File dest = new File(basePath + File.separator + storagePath, fileName);
+
+        // 判断 storagePath 是绝对路径还是相对路径
+        File storageDir = new File(storagePath);
+        if (!storageDir.isAbsolute()) {
+            // 相对路径：拼接到工作目录
+            String basePath = System.getProperty("user.dir");
+            storageDir = new File(basePath, storagePath);
+        }
+
+        File dest = new File(storageDir, fileName);
         dest.getParentFile().mkdirs();
         file.transferTo(dest);
 

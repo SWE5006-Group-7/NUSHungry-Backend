@@ -1,0 +1,113 @@
+---
+# Config Repository ConfigMap (for Config Server)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config-repo
+  namespace: nushungry
+  labels:
+    app: config-server
+data:
+  application.yml: |
+    # Global application configuration
+    spring:
+      application:
+        name: nushungry
+      cloud:
+        config:
+          fail-fast: true
+      jackson:
+        serialization:
+          write-dates-as-timestamps: false
+        time-zone: Asia/Singapore
+
+  application-prod.yml: |
+    # Production environment configuration
+    spring:
+      jpa:
+        hibernate:
+          ddl-auto: validate
+        show-sql: false
+      logging:
+        level:
+          root: INFO
+          com.nushungry: INFO
+
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+      tracing:
+        sampling:
+          probability: 0.1
+
+  eureka-server.yml: |
+    server:
+      port: 8761
+
+    eureka:
+      instance:
+        hostname: eureka-server
+      client:
+        register-with-eureka: false
+        fetch-registry: false
+      server:
+        enable-self-preservation: false
+
+  gateway-service.yml: |
+    server:
+      port: 8080
+
+    spring:
+      cloud:
+        gateway:
+          routes:
+            - id: admin-service
+              uri: lb://admin-service
+              predicates:
+                - Path=/api/admin/**
+            - id: cafeteria-service
+              uri: lb://cafeteria-service
+              predicates:
+                - Path=/api/cafeterias/**,/api/stalls/**
+            - id: review-service
+              uri: lb://review-service
+              predicates:
+                - Path=/api/reviews/**
+            - id: media-service
+              uri: lb://media-service
+              predicates:
+                - Path=/media/**
+            - id: preference-service
+              uri: lb://preference-service
+              predicates:
+                - Path=/api/favorites/**,/api/search-history/**
+          default-filters:
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 100
+                redis-rate-limiter.burstCapacity: 200
+---
+# Application ConfigMap (for all services)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: nushungry
+  labels:
+    app: nushungry
+data:
+  TZ: "Asia/Singapore"
+  JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+  SPRING_PROFILES_ACTIVE: "prod"
+  LOGGING_LEVEL_ROOT: "INFO"
+  LOGGING_LEVEL_NUSHUNGRY: "INFO"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,metrics,prometheus"
+  MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: "true"
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "0.1"
+  ZIPKIN_BASE_URL: "http://zipkin:9411"
