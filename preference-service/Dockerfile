@@ -13,7 +13,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
-RUN mkdir -p /var/log/preference-service && chown -R appuser:appgroup /var/log/preference-service
+# 创建 logs 目录 (与 logback-spring.xml 中的路径一致)
+RUN mkdir -p /app/logs && chown -R appuser:appgroup /app/logs
 USER appuser
 EXPOSE 8086 9086
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
