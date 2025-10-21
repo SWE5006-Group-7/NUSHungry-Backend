@@ -22,9 +22,9 @@
 
     <!-- 文件输出（备份）-->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/${serviceName}.log</file>
+        <file>/app/logs/${serviceName}.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/${serviceName}-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>/app/logs/${serviceName}-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
                 <maxFileSize>100MB</maxFileSize>
             </timeBasedFileNamingAndTriggeringPolicy>
@@ -101,7 +101,7 @@
     <springProfile name="prod">
         <root level="WARN">
             <appender-ref ref="FILE"/>
-            <appender-ref ref="ASYNC_LOGSTASH"/>
+            <!-- <appender-ref ref="ASYNC_LOGSTASH"/> -->
         </root>
     </springProfile>
 
@@ -109,7 +109,7 @@
     <springProfile name="dev">
         <root level="DEBUG">
             <appender-ref ref="CONSOLE"/>
-            <appender-ref ref="ASYNC_LOGSTASH"/>
+            <!-- <appender-ref ref="ASYNC_LOGSTASH"/> -->
         </root>
     </springProfile>
 </configuration>

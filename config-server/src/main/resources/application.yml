@@ -17,6 +17,9 @@ spring:
           clone-on-start: true
           # Default label (branch) to use
           default-label: ${CONFIG_GIT_BRANCH:main}
+          # Git authentication (required for remote repositories)
+          username: ${CONFIG_GIT_USERNAME:}
+          password: ${CONFIG_GIT_PASSWORD:}
           # Search paths within the repository
           search-paths: '{application}'
           # Timeout for git operations (ms)

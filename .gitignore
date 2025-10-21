@@ -36,3 +36,5 @@ target/
 *.jpg
 
 .spec-workflow/
+
+.env
