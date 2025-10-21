@@ -94,7 +94,7 @@
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
-        <!-- Logstash暂时禁用,避免连接失败警告 -->
+        <appender-ref ref="ASYNC_LOGSTASH"/>
         <!-- <appender-ref ref="ASYNC_LOGSTASH"/> -->
     </root>
 
