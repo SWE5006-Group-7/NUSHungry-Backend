@@ -9,28 +9,25 @@ services:
     ports:
       - "8888:8888"
     environment:
-      # Spring profiles
+      # Spring Profile (native使用本地文件系统，git使用Git仓库)
       - SPRING_PROFILES_ACTIVE=native
 
-      # Config Server credentials
+      # Config Server 认证配置
       - CONFIG_SERVER_USERNAME=config
       - CONFIG_SERVER_PASSWORD=config123
 
-      # Git repository configuration (for git profile)
-      - CONFIG_GIT_URI=${CONFIG_GIT_URI:-file:///config-repo}
-      - CONFIG_GIT_BRANCH=${CONFIG_GIT_BRANCH:-main}
-      - CONFIG_FORCE_PULL=false
+      # Git 仓库配置（仅当使用 git profile 时需要）
+      # - CONFIG_GIT_URI=${CONFIG_GIT_URI:-https://github.com/your-org/config-repo.git}
+      # - CONFIG_GIT_BRANCH=${CONFIG_GIT_BRANCH:-main}
 
-      # Eureka configuration
+      # Eureka 连接配置（容器网络地址）
       - EUREKA_SERVER_URL=http://eureka:eureka@eureka-server:8761/eureka/
 
-      # JVM options
-      - JAVA_OPTS=-Xmx512m -Xms256m
+      # JVM 配置
+      - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseG1GC
     volumes:
-      # Mount local config repository (for native profile)
-      - ./config-repo:/config-repo:ro
-      # Or mount a Git repository directory
-      # - ${CONFIG_REPO_PATH}:/config-repo:ro
+      # 挂载本地配置仓库（native profile 需要）
+      - ../config-repo:/config-repo:ro
     networks:
       - nushungry-network
     healthcheck:

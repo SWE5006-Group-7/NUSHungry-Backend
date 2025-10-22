@@ -46,19 +46,30 @@ services:
     container_name: preference-service
     restart: unless-stopped
     environment:
+      # Spring Profile (生产环境)
       SPRING_PROFILES_ACTIVE: prod
+      
+      # Config Server (必需，用于加载生产配置)
+      CONFIG_SERVER_URI: ${CONFIG_SERVER_URI:-http://config-server:8888}
+      
+      # PostgreSQL 连接配置（容器网络地址）
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: preference_service
       DB_USERNAME: preference
       DB_PASSWORD: password123
+      
+      # Redis 连接配置（容器网络地址）
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JAVA_OPTS: -Xms512m -Xmx1024m
-      SWAGGER_ENABLED: "true"
+      
+      # JVM 配置
+      JAVA_OPTS: -Xms512m -Xmx1024m -XX:+UseG1GC
+      
+      # 注意：业务配置（Swagger等）从 Config Server 加载
+      # 生产配置：config-repo/preference-service-prod.yml
     ports:
       - "8086:8086"
-      - "9086:9086"
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,0 +1,19 @@
+spring:
+  cloud:
+    config:
+      server:
+        native:
+          # Search locations for native profile (file system mode)
+          search-locations: file:///config-repo
+          # Enable searching in subdirectories
+          add-label-locations: false
+          # Default label (not used in native mode, but kept for consistency)
+          default-label: main
+
+# Disable Git repository for native profile
+  git:
+    enabled: false
+
+logging:
+  level:
+    org.springframework.cloud.config: DEBUG

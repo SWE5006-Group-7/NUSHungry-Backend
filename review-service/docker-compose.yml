@@ -1,25 +1,24 @@
 version: '3.8'
 
 services:
-  # PostgreSQL 服务
-  postgres:
-    image: postgres:16-alpine
-    container_name: admin-postgres
+  # MongoDB 服务
+  mongodb:
+    image: mongo:7
+    container_name: review-mongodb
     restart: unless-stopped
     environment:
-      POSTGRES_DB: admin_service
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password123
-      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: nushungry_reviews
     ports:
-      - "5432:5432"
+      - "27018:27017"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init_admin_db.sql:/docker-entrypoint-initdb.d/init.sql
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
     networks:
-      - admin-network
+      - review-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d admin_service"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,19 +27,19 @@ services:
   # RabbitMQ 服务
   rabbitmq:
     image: rabbitmq:3.12-management-alpine
-    container_name: admin-rabbitmq
+    container_name: review-rabbitmq
     restart: unless-stopped
     environment:
-      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_USER: review
       RABBITMQ_DEFAULT_PASS: password123
-      RABBITMQ_DEFAULT_VHOST: /admin
+      RABBITMQ_DEFAULT_VHOST: /review
     ports:
-      - "5672:5672"    # AMQP 端口
-      - "15672:15672"  # 管理界面端口
+      - "5674:5672"    # AMQP 端口
+      - "15674:15672"  # 管理界面端口
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
-      - admin-network
+      - review-network
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -48,12 +47,12 @@ services:
       retries: 5
       start_period: 30s
 
-  # Admin Service 应用
-  admin-service:
+  # Review Service 应用
+  review-service:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: admin-service
+    container_name: review-service
     restart: unless-stopped
     environment:
       # Spring Profile (生产环境)
@@ -62,38 +61,38 @@ services:
       # Config Server (必需，用于加载生产配置)
       CONFIG_SERVER_URI: ${CONFIG_SERVER_URI:-http://config-server:8888}
       
-      # PostgreSQL 连接配置（容器网络地址）
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: admin_service
-      DB_USERNAME: admin
-      DB_PASSWORD: password123
+      # MongoDB 连接配置（容器网络地址）
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_DATABASE: nushungry_reviews
+      MONGODB_USERNAME: admin
+      MONGODB_PASSWORD: password123
       
       # RabbitMQ 连接配置（容器网络地址）
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: admin
+      RABBITMQ_USERNAME: review
       RABBITMQ_PASSWORD: password123
-      RABBITMQ_VHOST: /admin
+      RABBITMQ_VHOST: /review
       
       # JVM 配置
       JAVA_OPTS: -Xms512m -Xmx1024m -XX:+UseG1GC
       
-      # 注意：业务配置（JWT、Swagger、CORS等）从 Config Server 加载
-      # 生产配置：config-repo/admin-service-prod.yml
+      # 注意：业务配置（RabbitMQ交换机/队列等）从 Config Server 加载
+      # 生产配置：config-repo/review-service-prod.yml
     ports:
-      - "8082:8082"  # 应用端口
+      - "8084:8084"  # 应用端口
     depends_on:
-      postgres:
+      mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     networks:
-      - admin-network
+      - review-network
     volumes:
-      - ./logs:/var/log/admin-service
+      - ./logs:/var/log/review-service
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -101,12 +100,14 @@ services:
 
 # 网络配置
 networks:
-  admin-network:
+  review-network:
     driver: bridge
 
 # 数据卷配置
 volumes:
-  postgres_data:
+  mongodb_data:
+    driver: local
+  mongodb_config:
     driver: local
   rabbitmq_data:
     driver: local

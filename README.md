@@ -14,7 +14,7 @@ Backend system for the NUSHungry application, implemented using a microservices 
 
 ## 🏗️ System Architecture
 
-The NUSHungry backend has been refactored from a monolithic architecture to a **microservices architecture**, providing better scalability, maintainability, and independent deployment capabilities.
+The NUSHungry backend implements a **distributed microservices architecture** with centralized configuration management, designed for multi-server deployment and horizontal scalability.
 
 ```mermaid
 graph TB
@@ -22,7 +22,13 @@ graph TB
         Client[Web/Mobile Client]
     end
     
-    subgraph "Microservices"
+    subgraph "Infrastructure Services"
+        Gateway[Gateway Service<br/>:8080]
+        Eureka[Eureka Server<br/>:8761]
+        ConfigServer[Config Server<br/>:8888]
+    end
+    
+    subgraph "Business Microservices"
         Admin[admin-service<br/>:8082]
         Cafeteria[cafeteria-service<br/>:8083]
         Review[review-service<br/>:8084]
@@ -31,23 +37,40 @@ graph TB
     end
     
     subgraph "Data Layer"
-        PG1[(PostgreSQL<br/>Admin DB<br/>:5432)]
-        PG2[(PostgreSQL<br/>Cafeteria DB<br/>:5433)]
-        PG3[(PostgreSQL<br/>Media DB<br/>:5434)]
-        PG4[(PostgreSQL<br/>Preference DB<br/>:5435)]
-        Mongo[(MongoDB<br/>Review DB<br/>:27017)]
+        PG1[(PostgreSQL<br/>Admin DB)]
+        PG2[(PostgreSQL<br/>Cafeteria DB)]
+        PG3[(PostgreSQL<br/>Media DB)]
+        PG4[(PostgreSQL<br/>Preference DB)]
+        Mongo[(MongoDB<br/>Review DB)]
     end
     
     subgraph "Infrastructure"
-        RabbitMQ[RabbitMQ<br/>:5672, 15672]
-        MinIO[MinIO<br/>:9000, 9001]
+        RabbitMQ[RabbitMQ<br/>:5672]
+        MinIO[MinIO<br/>:9000]
+        Zipkin[Zipkin<br/>:9411]
     end
     
-    Client --> Admin
-    Client --> Cafeteria
-    Client --> Review
-    Client --> Media
-    Client --> Preference
+    Client --> Gateway
+    Gateway --> Admin
+    Gateway --> Cafeteria
+    Gateway --> Review
+    Gateway --> Media
+    Gateway --> Preference
+    
+    Admin -.Register.-> Eureka
+    Cafeteria -.Register.-> Eureka
+    Review -.Register.-> Eureka
+    Media -.Register.-> Eureka
+    Preference -.Register.-> Eureka
+    Gateway -.Register.-> Eureka
+    
+    Admin -.Load Config.-> ConfigServer
+    Cafeteria -.Load Config.-> ConfigServer
+    Review -.Load Config.-> ConfigServer
+    Media -.Load Config.-> ConfigServer
+    Preference -.Load Config.-> ConfigServer
+    Gateway -.Load Config.-> ConfigServer
+    Eureka -.Load Config.-> ConfigServer
     
     Admin --> PG1
     Admin --> RabbitMQ
@@ -59,16 +82,25 @@ graph TB
     Media --> MinIO
     Preference --> PG4
     
+    Admin --> Zipkin
+    Cafeteria --> Zipkin
+    Review --> Zipkin
+    Media --> Zipkin
+    Preference --> Zipkin
+    
     Review -.Event.-> RabbitMQ
     RabbitMQ -.Event.-> Cafeteria
 ```
 
 ### Architecture Principles
-- **Service Independence**: Each microservice has its own database and can be deployed independently
+- **Service Independence**: Each microservice has its own database and can be deployed independently on different servers
+- **Centralized Configuration**: Config Server manages all service configurations with environment-specific profiles (dev/prod)
+- **Service Discovery**: Eureka Server enables dynamic service registration and discovery across multiple hosts
+- **API Gateway**: Single entry point for all client requests with routing, authentication, and rate limiting
 - **Event-Driven**: Services communicate asynchronously via RabbitMQ for loose coupling
 - **Polyglot Persistence**: PostgreSQL for relational data, MongoDB for document-based reviews
-- **API-First**: RESTful APIs with Swagger/OpenAPI documentation
-- **Containerization**: Docker-based deployment for consistency across environments
+- **Distributed Tracing**: Zipkin integration for end-to-end request tracking across services
+- **Containerization**: Docker-based deployment for consistency and portability
 
 ---
 
@@ -171,56 +203,85 @@ graph TB
 - **Docker**: 20.10+ (with Docker Compose)
 - **Git**: For version control
 
-### 🚀 Option 1: Docker Compose (Recommended)
+### 🎯 Deployment Options
 
-Start all microservices and infrastructure with a single command:
+#### Option 1: Local Development (Single Service)
+
+For local development and testing of individual services:
 
 ```bash
-# 1. Clone the repository
-git clone <repository-url>
-cd nushungry-Backend
+# 1. Start infrastructure services first
+cd config-server
+docker compose up -d
+cd ../eureka-server
+docker compose up -d
 
-# 2. Copy environment variables template
-cp .env.example .env
+# 2. Start a specific service with its dependencies
+cd ../cafeteria-service
+docker compose up -d
 
-# 3. Start all services
-docker-compose up -d
-
-# 4. Check service health
-docker-compose ps
+# 3. Check service health
+docker compose ps
+curl http://localhost:8083/actuator/health
 ```
 
-**Service URLs:**
+**Each service has its own `docker-compose.yml` for isolated development.**
+
+#### Option 2: Distributed Production Deployment
+
+For multi-server production deployment:
+
+**Server 1 (Infrastructure)**:
+```bash
+# Deploy Config Server and Eureka Server
+cd config-server && docker compose -f docker-compose.yml up -d
+cd eureka-server && docker compose -f docker-compose.yml up -d
+cd gateway-service && docker compose -f docker-compose.yml up -d
+```
+
+**Server 2 (Business Services)**:
+```bash
+# Configure environment variables to point to Server 1
+export EUREKA_HOST=<server-1-ip>
+export CONFIG_SERVER_URI=http://<server-1-ip>:8888
+
+# Deploy business services
+cd admin-service && docker compose -f docker-compose.yml up -d
+cd cafeteria-service && docker compose -f docker-compose.yml up -d
+```
+
+**Server 3 (Business Services)**:
+```bash
+export EUREKA_HOST=<server-1-ip>
+export CONFIG_SERVER_URI=http://<server-1-ip>:8888
+
+cd review-service && docker compose -f docker-compose.yml up -d
+cd media-service && docker compose -f docker-compose.yml up -d
+cd preference-service && docker compose -f docker-compose.yml up -d
+```
+
+> **Note**: See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for complete multi-server deployment guide.
+
+**Service Access Points:**
+- Gateway (Single Entry): http://gateway-server:8080
+- Config Server: http://config-server:8888
+- Eureka Dashboard: http://eureka-server:8761
 - Admin Service: http://localhost:8082
 - Cafeteria Service: http://localhost:8083
 - Review Service: http://localhost:8084
 - Media Service: http://localhost:8085
 - Preference Service: http://localhost:8086
-- RabbitMQ Management: http://localhost:15672 (guest/guest)
-- MinIO Console: http://localhost:9001 (minioadmin/minioadmin)
 
-### 🔧 Option 2: Run Individual Services
-
-Each service can be run independently for development:
-
-```bash
-# Example: Run cafeteria-service
-cd cafeteria-service
-./scripts/start-services.sh  # Linux/Mac
-# or
-.\scripts\start-services.bat  # Windows
-```
-
-Refer to each service's `DEPLOYMENT.md` for detailed instructions.
-
-### 🛠️ Option 3: Manual Build & Run
+#### Option 3: Manual Build & Run
 
 ```bash
 # Build all services
 mvn clean install -DskipTests
 
-# Run a specific service
+# Run a specific service with Config Server support
 cd admin-service
+export CONFIG_SERVER_URI=http://localhost:8888
+export SPRING_PROFILES_ACTIVE=dev
 mvn spring-boot:run
 ```
 
@@ -417,31 +478,87 @@ GitHub Actions automatically:
 
 ---
 
-## 🔧 Configuration
+## 🔧 Configuration Management
+
+### Configuration Architecture
+
+The system uses **Spring Cloud Config Server** for centralized configuration management with a clear hierarchy:
+
+```
+Priority (High to Low):
+1. Environment Variables (Runtime, highest priority)
+2. Config Server (config-repo/*.yml)
+3. application.properties (Default values, lowest priority)
+```
+
+### Config Server Structure
+
+All service configurations are stored in `config-repo/`:
+
+```
+config-repo/
+├── application.yml                # Global configuration for all services
+├── application-dev.yml            # Development environment overrides
+├── application-prod.yml           # Production environment overrides
+├── admin-service.yml              # Admin Service specific config
+├── admin-service-prod.yml         # Admin Service production config
+├── cafeteria-service.yml          # Cafeteria Service config
+├── review-service.yml             # Review Service config
+├── gateway-service.yml            # Gateway routing rules
+└── ... (other services)
+```
 
 ### Environment Variables
 
-Copy `.env.example` to `.env` and configure:
+Key environment variables for each service:
 
 ```bash
-# Database
+# Infrastructure Services Connection
+CONFIG_SERVER_URI=http://config-server:8888
+EUREKA_HOST=eureka-server
+SPRING_PROFILES_ACTIVE=prod  # or 'dev' for local development
+
+# Database (Injected via Config Server)
+POSTGRES_HOST=postgres
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password
+POSTGRES_PASSWORD=<secure-password>
+
+# MongoDB (for Review Service)
+MONGODB_HOST=mongodb
+MONGO_USER=admin
+MONGO_PASSWORD=<secure-password>
 
 # RabbitMQ
+RABBITMQ_HOST=rabbitmq
 RABBITMQ_USER=guest
-RABBITMQ_PASSWORD=guest
+RABBITMQ_PASSWORD=<secure-password>
 
-# MinIO
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin
+# Security
+JWT_SECRET=<your-secret-key-change-in-production>
 
-# JWT
-JWT_SECRET=your-secret-key
-JWT_EXPIRATION=86400000
+# Monitoring
+ZIPKIN_URL=http://zipkin:9411
 ```
 
-See `.env.example` for complete configuration options.
+### Configuration Best Practices
+
+1. **Sensitive Data**: Always use environment variables for passwords, secrets, and API keys
+2. **Environment Profiles**: Use `dev` for local development, `prod` for production
+3. **Config Server First**: Config Server must be running before starting other services
+4. **Service Discovery**: Services automatically discover each other via Eureka
+
+### Accessing Config Server
+
+```bash
+# Check if Config Server is healthy
+curl http://localhost:8888/actuator/health
+
+# View configuration for a service
+curl -u config:config123 http://localhost:8888/admin-service/prod
+curl -u config:config123 http://localhost:8888/cafeteria-service/dev
+```
+
+> **Note**: See [`docs/CONFIG_MANAGEMENT.md`](docs/CONFIG_MANAGEMENT.md) for detailed configuration management guide.
 
 ---
 
@@ -484,14 +601,18 @@ For issues, questions, or contributions:
 - Event-driven communication (RabbitMQ)
 - Comprehensive testing suite
 - CI/CD pipeline setup
+- **API Gateway integration (Spring Cloud Gateway)**
+- **Service discovery (Eureka Server)**
+- **Centralized configuration management (Config Server)**
+- **Distributed tracing (Zipkin)**
+- **Multi-server distributed deployment support**
 
 ### In Progress 🚧
-- API Gateway integration
-- Service discovery (Eureka)
-- Distributed tracing (Zipkin)
+- Kubernetes deployment configurations
+- Enhanced monitoring dashboards
 
 ### Planned 📋
-- Kubernetes deployment
 - Centralized logging (ELK Stack)
 - Monitoring & alerting (Prometheus + Grafana)
-- Rate limiting & circuit breakers
+- Circuit breakers (Resilience4j)
+- API rate limiting improvements

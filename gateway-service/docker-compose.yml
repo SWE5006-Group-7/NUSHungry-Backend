@@ -10,24 +10,22 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # JWT Configuration
-      - JWT_SECRET=${JWT_SECRET:-nushungry-secret-key-change-this-in-production}
-      - JWT_EXPIRATION=${JWT_EXPIRATION:-86400000}
+      # Spring Profile (生产环境)
+      - SPRING_PROFILES_ACTIVE=prod
+      
+      # Config Server (必需，用于加载生产配置)
+      - CONFIG_SERVER_URI=${CONFIG_SERVER_URI:-http://config-server:8888}
 
-      # Redis Configuration (for rate limiting)
+      # Redis 连接配置（容器网络地址，用于限流）
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD:-}
 
-      # Service URLs (using service names in Docker network)
-      - ADMIN_SERVICE_URL=http://admin-service:8082
-      - CAFETERIA_SERVICE_URL=http://cafeteria-service:8083
-      - REVIEW_SERVICE_URL=http://review-service:8084
-      - MEDIA_SERVICE_URL=http://media-service:8085
-      - PREFERENCE_SERVICE_URL=http://preference-service:8086
-
-      # Logging
-      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_GATEWAY=DEBUG
+      # JVM 配置
+      - JAVA_OPTS=-Xms512m -Xmx1024m -XX:+UseG1GC
+      
+      # 注意：业务配置（JWT、路由规则等）从 Config Server 加载
+      # 生产配置：config-repo/gateway-service-prod.yml
 
     depends_on:
       redis:

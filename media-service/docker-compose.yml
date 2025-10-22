@@ -56,39 +56,31 @@ services:
     container_name: media-service
     restart: unless-stopped
     environment:
-      # Spring Profile
+      # Spring Profile (生产环境)
       SPRING_PROFILES_ACTIVE: prod
       
-      # PostgreSQL 配置
+      # Config Server (必需，用于加载生产配置)
+      CONFIG_SERVER_URI: ${CONFIG_SERVER_URI:-http://config-server:8888}
+
+      # PostgreSQL 连接配置（容器网络地址）
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: media_service
       DB_USERNAME: media
       DB_PASSWORD: password123
       
-      # 文件存储配置
-      FILE_STORAGE_TYPE: local  # local 或 minio
-      FILE_UPLOAD_DIR: /app/uploads
-      FILE_MAX_SIZE: 10485760  # 10MB
-      IMAGE_MAX_SIZE: 5242880  # 5MB
-      
-      # MinIO 配置（可选）
+      # MinIO 连接配置（容器网络地址）
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
-      MINIO_BUCKET_NAME: nushungry-media
       
       # JVM 配置
       JAVA_OPTS: -Xms512m -Xmx1024m -XX:+UseG1GC
       
-      # Swagger 配置（开发环境可启用）
-      SWAGGER_ENABLED: "true"
-      
-      # CORS 配置
-      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+      # 注意：业务配置（文件上传大小、存储类型等）从 Config Server 加载
+      # 生产配置：config-repo/media-service-prod.yml
     ports:
       - "8085:8085"  # 应用端口
-      - "9085:9085"  # 管理端口
     depends_on:
       postgres:
         condition: service_healthy

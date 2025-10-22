@@ -9,24 +9,21 @@ services:
     ports:
       - "8761:8761"
     environment:
-      # Spring profiles
-      - SPRING_PROFILES_ACTIVE=docker
+      # Spring Profile (生产环境)
+      - SPRING_PROFILES_ACTIVE=prod
 
-      # Security credentials
+      # Config Server (必需，用于加载生产配置)
+      - CONFIG_SERVER_URI=${CONFIG_SERVER_URI:-http://config-server:8888}
+
+      # Security 连接配置（用于 Dashboard 认证）
       - SPRING_SECURITY_USER_NAME=${EUREKA_USERNAME:-eureka}
       - SPRING_SECURITY_USER_PASSWORD=${EUREKA_PASSWORD:-eureka}
 
-      # Server configuration
-      - SERVER_PORT=8761
-
-      # Eureka server settings
-      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
-      - EUREKA_CLIENT_FETCH_REGISTRY=false
-      - EUREKA_SERVER_ENABLE_SELF_PRESERVATION=true
-
-      # Logging
-      - LOGGING_LEVEL_COM_NETFLIX_EUREKA=INFO
-      - LOGGING_LEVEL_COM_NETFLIX_DISCOVERY=INFO
+      # JVM 配置
+      - JAVA_OPTS=-Xms256m -Xmx512m -XX:+UseG1GC
+      
+      # 注意：业务配置（自我保护、日志级别等）从 Config Server 加载
+      # 生产配置：config-repo/eureka-server-prod.yml
 
     networks:
       - nushungry-network
@@ -39,9 +36,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
-    volumes:
-      - eureka-data:/app/data
 
     labels:
       com.nushungry.service: "eureka-server"

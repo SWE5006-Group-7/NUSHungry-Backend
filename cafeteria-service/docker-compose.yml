@@ -75,40 +75,38 @@ services:
     container_name: cafeteria-service
     restart: unless-stopped
     environment:
-      # Spring Profile
+      # Spring Profile (生产环境)
       SPRING_PROFILES_ACTIVE: prod
       
-      # PostgreSQL 配置
+      # Config Server (必需，用于加载生产配置)
+      CONFIG_SERVER_URI: ${CONFIG_SERVER_URI:-http://config-server:8888}
+      
+      # PostgreSQL 连接配置（容器网络地址）
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: cafeteria_service
       DB_USERNAME: cafeteria
       DB_PASSWORD: password123
       
-      # RabbitMQ 配置
+      # RabbitMQ 连接配置（容器网络地址）
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
       RABBITMQ_USERNAME: cafeteria
       RABBITMQ_PASSWORD: password123
       RABBITMQ_VHOST: /cafeteria
       
-      # Redis 配置
+      # Redis 连接配置（容器网络地址）
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: password123
-      SPRING_CACHE_TYPE: redis
       
       # JVM 配置
       JAVA_OPTS: -Xms512m -Xmx1024m -XX:+UseG1GC
       
-      # Swagger 配置（开发环境可启用）
-      SWAGGER_ENABLED: "true"
-      
-      # CORS 配置
-      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+      # 注意：业务配置（Swagger、CORS等）从 Config Server 加载
+      # 生产配置：config-repo/cafeteria-service-prod.yml
     ports:
       - "8083:8083"  # 应用端口
-      - "9083:9083"  # 管理端口
     depends_on:
       postgres:
         condition: service_healthy
