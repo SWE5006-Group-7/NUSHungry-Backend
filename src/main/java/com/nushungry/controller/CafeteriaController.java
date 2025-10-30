@@ -290,7 +290,7 @@ public class CafeteriaController {
      * 获取食堂列表（管理员视图，含详细信息和分页）
      */
     @GetMapping("/admin")
-    // @PreAuthorize("hasRole('ADMIN')") // 注：由于Spring Security兼容性问题，暂时注释掉
+    @PreAuthorize("hasRole('ADMIN')")
     @SecurityRequirement(name = "Bearer Authentication")
     @Operation(summary = "获取食堂列表 [管理员]", description = "分页查询所有食堂（管理员视图，需要管理员权限）")
     public ResponseEntity<Map<String, Object>> getCafeteriaListForAdmin(

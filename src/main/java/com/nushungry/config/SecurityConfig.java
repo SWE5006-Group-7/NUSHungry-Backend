@@ -62,12 +62,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/reviews/admin/**").hasRole("ADMIN")
 
                         // 4. 写操作需要认证（在公共接口之前）
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cafeterias/**").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/cafeterias/**").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/cafeterias/**").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/stalls/**").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/stalls/**").authenticated()
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/stalls/**").authenticated()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cafeterias").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/cafeterias/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/cafeterias/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/stalls").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/stalls/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/stalls/**").hasRole("ADMIN")
 
                         // 5. 公开读取接口（最后配置 - 只有GET请求）
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cafeterias/**").permitAll()
