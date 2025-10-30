@@ -76,13 +76,13 @@ public class ReviewControllerAdminTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("管理员获取所有评价 - 权限验证")
+    @DisplayName("管理员获取所有评价 - 成功")
     void shouldGetAllReviews_WhenAdmin() {
         webTestClient.get()
                 .uri("/api/reviews/admin")
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
-                .expectStatus().is4xxClientError(); // 权限验证返回403
+                .expectStatus().is2xxSuccessful(); // 管理员应该成功访问
     }
 
     @Test
@@ -96,13 +96,13 @@ public class ReviewControllerAdminTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("管理员获取评价统计 - 权限验证")
+    @DisplayName("管理员获取评价统计 - 成功")
     void shouldGetReviewStats_WhenAdmin() {
         webTestClient.get()
                 .uri("/api/reviews/admin/stats")
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
-                .expectStatus().is4xxClientError(); // 权限验证返回403
+                .expectStatus().is2xxSuccessful(); // 管理员应该成功访问
     }
 
     @Test
@@ -116,13 +116,13 @@ public class ReviewControllerAdminTest extends IntegrationTestBase {
     }
 
     @Test
-    @DisplayName("管理员删除任意评价 - 权限验证")
+    @DisplayName("管理员删除任意评价 - 功能未实现")
     void shouldDeleteAnyReview_WhenAdmin() {
         webTestClient.delete()
                 .uri("/api/reviews/1")
                 .header("Authorization", "Bearer " + adminToken)
                 .exchange()
-                .expectStatus().is4xxClientError(); // 权限验证返回403
+                .expectStatus().is4xxClientError(); // 删除评价功能尚未实现或不完整
     }
 
     @Test

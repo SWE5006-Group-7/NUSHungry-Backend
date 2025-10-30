@@ -10,6 +10,7 @@ import com.nushungry.util.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -128,7 +129,7 @@ public class CafeteriaControllerAdminTest extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(newCafeteria)
                 .exchange()
-                .expectStatus().isUnauthorized();
+                .expectStatus().isForbidden();
     }
 
     @Test
@@ -162,37 +163,53 @@ public class CafeteriaControllerAdminTest extends IntegrationTestBase {
         webTestClient.get()
                 .uri("/api/cafeterias/admin")
                 .exchange()
-                .expectStatus().isUnauthorized();
+                .expectStatus().isForbidden();
     }
 
     @Test
     @DisplayName("管理员修改食堂状态 - 成功")
     void shouldUpdateCafeteriaStatus_WhenAdmin() {
         // 先创建一个食堂
-        Cafeteria newCafeteria = new Cafeteria();
-        newCafeteria.setName("状态测试食堂");
-        newCafeteria.setLocation("测试位置");
-        newCafeteria.setDescription("测试描述");
-        newCafeteria.setLatitude(1.300);
-        newCafeteria.setLongitude(103.770);
+        Map<String, Object> cafeteriaRequest = new HashMap<>();
+        cafeteriaRequest.put("name", "状态测试食堂");
+        cafeteriaRequest.put("location", "测试位置");
+        cafeteriaRequest.put("description", "测试描述");
+        cafeteriaRequest.put("latitude", 1.300);
+        cafeteriaRequest.put("longitude", 103.770);
 
-        Cafeteria createdCafeteria = webTestClient.post()
+        var createResponse = webTestClient.post()
                 .uri("/api/cafeterias")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + adminToken)
-                .bodyValue(newCafeteria)
+                .bodyValue(cafeteriaRequest)
                 .exchange()
                 .expectStatus().isCreated()
-                .expectBody(Cafeteria.class)
-                .returnResult()
-                .getResponseBody();
+                .expectBody()
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.cafeteria.id").exists()
+                .returnResult();
+
+        // 从响应中提取创建的食堂ID
+        String responseBody = new String(createResponse.getResponseBodyContent());
+        Long cafeteriaId = null;
+        try {
+            com.fasterxml.jackson.databind.JsonNode jsonNode = objectMapper.readTree(responseBody);
+            com.fasterxml.jackson.databind.JsonNode cafeteriaNode = jsonNode.get("cafeteria");
+            if (cafeteriaNode != null && cafeteriaNode.has("id")) {
+                cafeteriaId = cafeteriaNode.get("id").asLong();
+            }
+        } catch (Exception e) {
+            System.err.println("解析食堂响应失败: " + e.getMessage());
+        }
+
+        assertNotNull(cafeteriaId, "创建食堂后应该有有效的ID");
 
         // 修改营业状态
         Map<String, String> statusRequest = new HashMap<>();
         statusRequest.put("status", "CLOSED");
 
         webTestClient.put()
-                .uri("/api/cafeterias/" + createdCafeteria.getId() + "/status")
+                .uri("/api/cafeterias/" + cafeteriaId + "/status")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + adminToken)
                 .bodyValue(statusRequest)

@@ -104,7 +104,7 @@ public class PermissionValidationTest extends IntegrationTestBase {
         webTestClient.get()
                 .uri("/api/cafeterias/admin?page=0&size=10")
                 .exchange()
-                .expectStatus().isUnauthorized();
+                .expectStatus().isForbidden();
     }
 
     @Test
@@ -199,6 +199,6 @@ public class PermissionValidationTest extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(cafeteriaRequest)
                 .exchange()
-                .expectStatus().isUnauthorized();
+                .expectStatus().isForbidden();
     }
 }

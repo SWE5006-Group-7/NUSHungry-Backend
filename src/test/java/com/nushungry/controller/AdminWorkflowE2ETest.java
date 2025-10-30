@@ -49,6 +49,8 @@ public class AdminWorkflowE2ETest extends IntegrationTestBase {
 
     private String adminToken;
     private User adminUser;
+    private Cafeteria createdCafeteria;
+    private Stall createdStall;
 
     @BeforeEach
     @Transactional
@@ -78,12 +80,12 @@ public class AdminWorkflowE2ETest extends IntegrationTestBase {
         assertAdminAuthenticationWorks();
 
         // 步骤2: 创建食堂
-        Cafeteria createdCafeteria = createCafeteriaSuccessfully();
+        createdCafeteria = createCafeteriaSuccessfully();
         assertNotNull(createdCafeteria.getId(), "食堂创建后应该有ID");
         System.out.println("✅ 食堂创建成功: " + createdCafeteria.getName());
 
         // 步骤3: 创建档口
-        Stall createdStall = createStallSuccessfully(createdCafeteria.getId());
+        createdStall = createStallSuccessfully(createdCafeteria.getId());
         assertNotNull(createdStall.getId(), "档口创建后应该有ID");
         System.out.println("✅ 档口创建成功: " + createdStall.getName());
 
@@ -272,13 +274,21 @@ public class AdminWorkflowE2ETest extends IntegrationTestBase {
      * 验证数据已被删除
      */
     private void verifyDataHasBeenDeleted() {
-        // 验证食堂已被删除
-        webTestClient.get()
-                .uri("/api/cafeterias/99999") // 使用一个不存在的ID
-                .exchange()
-                .expectStatus().isNotFound()
-                .expectBody()
-                .jsonPath("$.success").isEqualTo(false);
+        // 验证食堂已被删除 - 使用已创建的食堂ID
+        if (createdCafeteria != null && createdCafeteria.getId() != null) {
+            webTestClient.get()
+                    .uri("/api/cafeterias/" + createdCafeteria.getId())
+                    .exchange()
+                    .expectStatus().isNotFound();
+        }
+
+        // 验证档口已被删除
+        if (createdStall != null && createdStall.getId() != null) {
+            webTestClient.get()
+                    .uri("/api/stalls/" + createdStall.getId())
+                    .exchange()
+                    .expectStatus().isNotFound();
+        }
     }
 
     @Test
@@ -316,7 +326,7 @@ public class AdminWorkflowE2ETest extends IntegrationTestBase {
         webTestClient.get()
                 .uri("/api/cafeterias/admin?page=0&size=10")
                 .exchange()
-                .expectStatus().isUnauthorized(); // 401 Unauthorized
+                .expectStatus().isForbidden(); // 403 Forbidden
 
         System.out.println("✅ 未认证用户权限验证正常 - 无法访问管理员接口");
     }

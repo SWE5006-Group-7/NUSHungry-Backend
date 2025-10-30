@@ -48,6 +48,9 @@ class StallControllerUnitTest {
     @MockBean
     private com.nushungry.service.SearchHistoryService searchHistoryService;
 
+    @MockBean
+    private com.nushungry.service.CafeteriaService cafeteriaService;
+
     @Autowired
     private ObjectMapper objectMapper;
 

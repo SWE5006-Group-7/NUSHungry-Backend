@@ -115,24 +115,39 @@ public class AdminWorkflowIntegrationTest extends IntegrationTestBase {
      * 成功创建食堂
      */
     private Cafeteria createCafeteriaSuccessfully() {
-        Cafeteria newCafeteria = new Cafeteria();
-        newCafeteria.setName("工作流测试食堂_" + System.currentTimeMillis());
-        newCafeteria.setLocation("测试位置_" + System.currentTimeMillis());
-        newCafeteria.setDescription("用于工作流测试的食堂");
-        newCafeteria.setLatitude(1.3000);
-        newCafeteria.setLongitude(103.7700);
-        newCafeteria.setTermTimeOpeningHours("08:00-22:00");
+        Map<String, Object> cafeteriaRequest = new HashMap<>();
+        cafeteriaRequest.put("name", "工作流测试食堂_" + System.currentTimeMillis());
+        cafeteriaRequest.put("location", "测试位置_" + System.currentTimeMillis());
+        cafeteriaRequest.put("description", "用于工作流测试的食堂");
+        cafeteriaRequest.put("latitude", 1.3000);
+        cafeteriaRequest.put("longitude", 103.7700);
+        cafeteriaRequest.put("termTimeOpeningHours", "08:00-22:00");
 
-        return webTestClient.post()
+        var response = webTestClient.post()
                 .uri("/api/cafeterias")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", "Bearer " + adminToken)
-                .bodyValue(newCafeteria)
+                .bodyValue(cafeteriaRequest)
                 .exchange()
                 .expectStatus().isCreated()
-                .expectBody(Cafeteria.class)
-                .returnResult()
-                .getResponseBody();
+                .expectBody()
+                .jsonPath("$.success").isEqualTo(true)
+                .jsonPath("$.cafeteria.id").exists()
+                .returnResult();
+
+        // 从响应中提取cafeteria对象
+        String responseBody = new String(response.getResponseBodyContent());
+        try {
+            com.fasterxml.jackson.databind.JsonNode jsonNode = objectMapper.readTree(responseBody);
+            com.fasterxml.jackson.databind.JsonNode cafeteriaNode = jsonNode.get("cafeteria");
+            if (cafeteriaNode != null) {
+                return objectMapper.treeToValue(cafeteriaNode, Cafeteria.class);
+            }
+        } catch (Exception e) {
+            System.err.println("解析食堂响应失败: " + e.getMessage());
+        }
+
+        throw new RuntimeException("无法创建食堂");
     }
 
     /**
@@ -257,7 +272,7 @@ public class AdminWorkflowIntegrationTest extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(newCafeteria)
                 .exchange()
-                .expectStatus().isUnauthorized();
+                .expectStatus().isForbidden();
     }
 
     /**

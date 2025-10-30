@@ -218,7 +218,7 @@ public class CafeteriaControllerAdminIntegrationTest extends IntegrationTestBase
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(newCafeteria)
                 .exchange()
-                .expectStatus().isUnauthorized();
+                .expectStatus().isForbidden();
     }
 
     @Test

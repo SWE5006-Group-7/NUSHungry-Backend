@@ -104,7 +104,7 @@ public class SimpleAuthTest extends IntegrationTestBase {
                 .uri("/api/cafeterias/admin")
                 .header("Authorization", "Bearer " + userToken)
                 .exchange()
-                .expectStatus().is5xxServerError(); // 期望500错误因为权限配置有问题
+                .expectStatus().is4xxClientError(); // 普通用户访问管理员接口应返回403
     }
 
     @Test
@@ -125,13 +125,13 @@ public class SimpleAuthTest extends IntegrationTestBase {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(cafeteriaRequest)
                 .exchange()
-                .expectStatus().is4xxClientError() // 权限验证失败返回403
+                .expectStatus().is2xxSuccessful() // 管理员应该能成功创建食堂
                 .expectBody()
                 .returnResult();
 
         System.out.println("Create cafeteria response: " + new String(createResponse.getResponseBodyContent()));
 
-        // 由于创建失败，我们直接测试状态修改接口
+        // 测试状态修改接口
         Map<String, String> statusRequest = new HashMap<>();
         statusRequest.put("status", "CLOSED");
 
@@ -141,7 +141,7 @@ public class SimpleAuthTest extends IntegrationTestBase {
                 .header("Authorization", "Bearer " + adminToken)
                 .bodyValue(statusRequest)
                 .exchange()
-                .expectStatus().is5xxServerError() // 这个接口仍然返回500
+                .expectStatus().is2xxSuccessful() // 管理员应该能成功修改状态
                 .expectBody()
                 .returnResult();
 
