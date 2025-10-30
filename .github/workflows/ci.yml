@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "refactor/optimise-dep-check-stage" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "refactor/optimise-dep-check-stage" ]
 
 
 jobs:
@@ -69,8 +69,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
+      - name: Cache OWASP Dependency-Check data
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/dependency-check-data
+          key: dependency-check-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            dependency-check-${{ runner.os }}-
       - name: Dependency scan
-        run: mvn compile dependency-check:check -DnvdApiKey=${{ secrets.NVD_API_KEY }} -Dossindex.username=chowjss@gmail.com -Dossindex.password=y${{ secrets.OSS_INDEX_TOKEN }} -DfailBuildOnCVSS=11 -Dformats=HTML
+        run: mvn compile dependency-check:check -DnvdApiKey=${{ secrets.NVD_API_KEY }} -Dossindex.username=chowjss@gmail.com -Dossindex.password=y${{ secrets.OSS_INDEX_TOKEN }} -DfailBuildOnCVSS=7 -Dformats=HTML
 
       - name: Upload dependency scan results
         uses: actions/upload-artifact@v4
