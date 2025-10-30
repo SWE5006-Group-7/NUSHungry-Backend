@@ -96,7 +96,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
       - name: Check code style
-        run: mvn compile checkstyle:checkstyle
+        run: mvn checkstyle:checkstyle -DnvdApiKey=${{ secrets.NVD_API_KEY }}
       - name: Upload check style results
         uses: actions/upload-artifact@v4
         if: always()
