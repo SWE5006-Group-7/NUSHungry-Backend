@@ -15,6 +15,7 @@
     <description>Backend for NUSHungry project</description>
     <properties>
         <java.version>17</java.version>
+        <tomcat.version>11.0.6</tomcat.version>
         <lombok.version>1.18.32</lombok.version>
     </properties>
     <dependencies>
