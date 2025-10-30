@@ -25,13 +25,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final UserDetailsService userDetailsService;
 
-    // 不需要认证的路径
+    // 不需要认证的路径（精确匹配）
     private static final List<String> SKIP_AUTH_PATHS = Arrays.asList(
         "/api/auth/login",
         "/api/auth/register",
-        "/api/cafeterias",
-        "/api/stalls",
-        "/api/images",
+        "/api/auth/refresh",
+        "/api/password/forgot",
+        "/api/password/reset",
+        "/api/password/verify-code",
         "/v3/api-docs",
         "/swagger-ui",
         "/swagger-ui.html"
@@ -50,8 +51,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 评价接口：只有 GET 请求可以跳过认证
-        if (requestPath.startsWith("/api/reviews") && "GET".equalsIgnoreCase(method)) {
+        // GET请求的公开接口可以跳过认证（与SecurityConfig保持一致）
+        if ("GET".equalsIgnoreCase(method)) {
+            if ((requestPath.startsWith("/api/cafeterias") && !requestPath.startsWith("/api/cafeterias/admin")) ||
+                (requestPath.startsWith("/api/stalls") && !requestPath.startsWith("/api/stalls/admin")) ||
+                requestPath.startsWith("/api/images") ||
+                requestPath.startsWith("/uploads")) {
+                chain.doFilter(request, response);
+                return;
+            }
+        }
+
+        // 评价接口：只有 GET 请求可以跳过认证（除了管理员接口）
+        if (requestPath.startsWith("/api/reviews") && "GET".equalsIgnoreCase(method) && !requestPath.startsWith("/api/reviews/admin")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        // 搜索历史接口：GET请求允许匿名访问
+        if (requestPath.startsWith("/api/search-history") && "GET".equalsIgnoreCase(method)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        // 收藏接口：GET请求允许匿名访问
+        if (requestPath.startsWith("/api/favorites") && "GET".equalsIgnoreCase(method)) {
             chain.doFilter(request, response);
             return;
         }

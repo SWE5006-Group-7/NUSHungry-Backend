@@ -25,7 +25,7 @@ public abstract class IntegrationTestBase {
         registry.add("spring.jpa.defer-datasource-initialization", () -> "true");
         registry.add("spring.sql.init.mode", () -> "always");
 
-        registry.add("jwt.secret", () -> "test-secret-key");
+        registry.add("jwt.secret", () -> "test-secret-key-for-nushungry-backend-jwt-signing-that-is-long-enough-for-hs256-algorithm");
         registry.add("jwt.expiration", () -> "3600000");
         registry.add("spring.mail.host", () -> "localhost");
         registry.add("spring.mail.port", () -> "2525");

@@ -37,7 +37,7 @@ public class Stall {
     private Cafeteria cafeteria;
 
     @OneToMany(mappedBy = "stall", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonManagedReference
+    @JsonManagedReference("stall-reviews")
     private List<Review> reviews;
 
     @OneToMany(mappedBy = "stall", cascade = CascadeType.ALL, fetch = FetchType.LAZY)

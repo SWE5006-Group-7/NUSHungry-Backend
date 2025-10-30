@@ -54,6 +54,7 @@ public class Review {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "stall_id", nullable = false)
+    @JsonBackReference("stall-reviews")
     @JsonIgnoreProperties({"reviews", "hibernateLazyInitializer", "handler"})
     private Stall stall;
 

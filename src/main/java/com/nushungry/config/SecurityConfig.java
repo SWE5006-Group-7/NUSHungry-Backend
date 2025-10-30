@@ -49,27 +49,48 @@ public class SecurityConfig {
                 }))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // 1. OPTIONS请求全部允许
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(
-                                "/api/auth/**",
-                                "/api/password/**",
-                                "/api/cafeterias/**",
-                                "/api/stalls/**",
-                                "/api/images/**",
-                                "/uploads/**",          // 允许访问上传的静态资源
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
-                        // 评价接口：GET 请求允许匿名访问，其他需要认证
+
+                        // 2. 认证相关接口
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/password/**").permitAll()
+
+                        // 3. 管理员专用接口（必须在公共接口之前）
+                        .requestMatchers("/api/cafeterias/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/stalls/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/reviews/admin/**").hasRole("ADMIN")
+
+                        // 4. 写操作需要认证（在公共接口之前）
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cafeterias").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/cafeterias/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/cafeterias/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/stalls").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/stalls/**").hasRole("ADMIN")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/stalls/**").hasRole("ADMIN")
+
+                        // 5. 公开读取接口（最后配置 - 只有GET请求）
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cafeterias/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/stalls/**").permitAll()
+                        .requestMatchers("/api/images/**").permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+
+                        // 6. 评价接口：GET 请求允许匿名访问，其他需要认证
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/reviews/**").permitAll()
                         .requestMatchers("/api/reviews/**").authenticated()
-                        // 搜索历史接口：GET请求允许匿名访问（未登录返回空），其他需要认证
+
+                        // 7. 搜索历史接口：GET请求允许匿名访问（未登录返回空），其他需要认证
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/search-history/**").permitAll()
                         .requestMatchers("/api/search-history/**").authenticated()
-                        // 收藏接口：GET请求允许匿名访问（检查收藏状态），其他需要认证
+
+                        // 8. 收藏接口：GET请求允许匿名访问（检查收藏状态），其他需要认证
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/favorites/**").permitAll()
                         .requestMatchers("/api/favorites/**").authenticated()
+
+                        // 9. 其他所有请求需要认证
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
