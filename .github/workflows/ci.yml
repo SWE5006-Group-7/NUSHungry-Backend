@@ -21,7 +21,7 @@ jobs:
       - name: Use dependency cache
         uses: actions/cache@v4
         with:
-          path: ~/.m2/dependency-check-data
+          path: ~/.m2/repository/org/owasp
           key: dependency-check-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             dependency-check-
@@ -60,7 +60,7 @@ jobs:
       - name: Use dependency cache
         uses: actions/cache@v4
         with:
-          path: ~/.m2/dependency-check-data
+          path: ~/.m2/repository/org/owasp
           key: dependency-check-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             dependency-check-
@@ -86,7 +86,7 @@ jobs:
       - name: Cache OWASP Dependency-Check data
         uses: actions/cache@v4
         with:
-          path: ~/.m2/dependency-check-data
+          path: ~/.m2/repository/org/owasp
           key: dependency-check-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             dependency-check-
@@ -112,7 +112,7 @@ jobs:
       - name: Use dependency cache
         uses: actions/cache@v4
         with:
-          path: ~/.m2/dependency-check-data
+          path: ~/.m2/repository/org/owasp
           key: dependency-check-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             dependency-check-
@@ -139,7 +139,7 @@ jobs:
       - name: Use dependency cache
         uses: actions/cache@v4
         with:
-          path: ~/.m2/dependency-check-data
+          path: ~/.m2/repository/org/owasp
           key: dependency-check-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             dependency-check-
