@@ -92,7 +92,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
       - name: Dependency scan
-        run: mvn compile dependency-check:check -Ddependency-check.skip=false -DnvdApiKey=${{ secrets.NVD_API_KEY }} -Dossindex.username=chowjss@gmail.com -Dossindex.password=y${{ secrets.OSS_INDEX_TOKEN }} -DfailBuildOnCVSS=11 -Dformats=HTML
+        run: mvn compile dependency-check:check -Ddependency-check.skip=false -DnvdValidForHours=168 -DnvdApiKey=${{ secrets.NVD_API_KEY }} -Dossindex.username=chowjss@gmail.com -Dossindex.password=y${{ secrets.OSS_INDEX_TOKEN }} -DfailBuildOnCVSS=11 -Dformats=HTML
 
       - name: Upload dependency scan results
         uses: actions/upload-artifact@v4
