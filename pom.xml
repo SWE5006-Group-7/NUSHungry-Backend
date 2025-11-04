@@ -147,13 +147,6 @@
                     <skip>true</skip>
                     <nvdValidForHours>24</nvdValidForHours>
                 </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>update-only</goal>
-                        </goals>
-                    </execution>
-                </executions>
 
             </plugin>
             <plugin>
