@@ -23,10 +23,21 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-
+      - name: Cache OWASP NVD data
+        id: cache-nvd
+        uses: actions/cache@v4
+        with:
+          path: ./.owasp-dc-data
+          key: owasp-nvd-${{ hashFiles('**/pom.xml') }}-${{ github.run_number }}
+          restore-keys: |
+            owasp-nvd-${{ hashFiles('**/pom.xml') }}-
+            owasp-nvd-
+      - name: Download NVD data if needed
+        if: steps.cache-nvd.outputs.cache-hit != 'true'
+        run: mvn -B -ntp dependency-check:update-only -Ddata.directory=./.owasp-dc-data -DnvdApiKey=${{ secrets.NVD_API_KEY }} -Dossindex.username=chowjss@gmail.com -Dossindex.password=y${{ secrets.OSS_INDEX_TOKEN }}
       - name: Prepare - download dependencies (go-offline)
         if: steps.setup-java.outputs.cache-hit != 'true'
-        run: mvn -B -ntp dependency:go-offline -Ddependency-check.skip=true
+        run: mvn -B -ntp dependency:go-offline -Ddependency-check.skip=false
   unit-and-integration-tests:
     runs-on: ubuntu-latest
     environment: dev
@@ -91,8 +102,16 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
+      - name: Restore OWASP NVD data cache
+        uses: actions/cache@v4
+        with:
+          path: ./.owasp-dc-data
+          key: owasp-nvd-${{ hashFiles('**/pom.xml') }}-${{ github.run_number }}
+          restore-keys: |
+            owasp-nvd-${{ hashFiles('**/pom.xml') }}-
+            owasp-nvd-
       - name: Dependency scan
-        run: mvn compile dependency-check:check -Ddependency-check.skip=false -DnvdValidForHours=168 -DnvdApiKey=${{ secrets.NVD_API_KEY }} -Dossindex.username=chowjss@gmail.com -Dossindex.password=y${{ secrets.OSS_INDEX_TOKEN }} -DfailBuildOnCVSS=11 -Dformats=HTML
+        run: mvn compile dependency-check:check -Ddependency-check.skip=false -Ddata.directory=./.owasp-dc-data -DnvdValidForHours=168 -DnvdApiKey=${{ secrets.NVD_API_KEY }} -Dossindex.username=chowjss@gmail.com -Dossindex.password=y${{ secrets.OSS_INDEX_TOKEN }} -DfailBuildOnCVSS=11 -Dformats=HTML
 
       - name: Upload dependency scan results
         uses: actions/upload-artifact@v4
@@ -112,7 +131,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
       - name: Check code style
-        run: mvn checkstyle:checkstyle -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+        run: mvn checkstyle:checkstyle
       - name: Upload check style results
         uses: actions/upload-artifact@v4
         if: always()
