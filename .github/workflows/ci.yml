@@ -90,7 +90,7 @@ jobs:
         if: always()
         with:
           name: sast-results
-          path: target/site/*.html
+          path: target/spotbugs/*.html
   owasp-dependency-check:
     runs-on: ubuntu-latest
     environment: dev
