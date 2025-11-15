@@ -1,0 +1,49 @@
+# Docker ignore file
+# 忽略不需要复制到镜像的文件
+
+# Maven 构建输出
+target/
+!target/*.jar
+
+# IDE 文件
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# 日志文件
+logs/
+*.log
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS 文件
+.DS_Store
+Thumbs.db
+
+# Docker 文件
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 文档
+README.md
+MIGRATION_GUIDE.md
+PROGRESS.md
+AGENTS.md
+
+# 脚本
+scripts/
+
+# 测试资源
+src/test/

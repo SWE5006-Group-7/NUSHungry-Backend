@@ -1,492 +1,334 @@
-# NUSHungry Backend
+# NUSHungry Backend - Microservices Architecture
 
-[![Build Status](https://github.com/SWE5006-Group-7/NUSHungry-Backend/workflows/CI/badge.svg)](https://github.com/SWE5006-Group-7/NUSHungry-Backend/actions)
-[![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](https://github.com/SWE5006-Group-7/NUSHungry-Backend/actions)
-[![Java 17](https://img.shields.io/badge/java-17+-blue.svg)](https://openjdk.java.net/)
-[![Spring Boot](https://img.shields.io/badge/spring%20boot-3.2.3-green.svg)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.3-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://www.oracle.com/java/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7-green.svg)](https://www.mongodb.com/)
+[![Redis](https://img.shields.io/badge/Redis-7-red.svg)](https://redis.io/)
+[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-3.12-orange.svg)](https://www.rabbitmq.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A comprehensive Spring Boot backend service for the NUSHungry campus dining platform, built with modern Java practices and featuring complete CI/CD automation.
+> A scalable microservices-based backend system for NUSHungry, a cafeteria and food stall discovery platform for National University of Singapore (NUS).
+
+## 🎯 Project Overview
+
+NUSHungry Backend is a production-ready microservices architecture designed to support a food discovery and review platform. The system enables users to:
+
+- 🔐 Register, authenticate, and manage accounts with JWT-based security
+- 🏢 Browse cafeterias and food stalls with detailed information
+- ⭐ Create, read, update, and delete reviews with ratings and images
+- ❤️ Save favorite stalls and maintain search history
+- 📸 Upload and manage media files
+- 🛡️ Report inappropriate content and admin moderation
+- 📊 View aggregated ratings, pricing, and statistics
+
+The architecture emphasizes **scalability**, **maintainability**, and **loose coupling** through modern microservices patterns.
+
+---
 
 ## 🏗️ System Architecture
 
-This application follows a **monolithic architecture** with clean separation of concerns using a three-tier pattern:
+### Microservices Overview
 
-```mermaid
-graph TD
-    subgraph "Client Layer"
-        A[Web App]
-        B[Mobile App]
-    end
+| Service | Port | Database | Description |
+|---------|------|----------|-------------|
+| **user-service** | 8081 | PostgreSQL | User authentication, JWT tokens, password reset, email verification |
+| **cafeteria-service** | 8083 | PostgreSQL + Redis | Cafeteria & stall directory, search, caching, rating aggregation |
+| **review-service** | 8084 | MongoDB | Review management, likes, reports, rating/price calculation |
+| **media-service** | 8085 | PostgreSQL | Image upload, storage, and serving |
+| **preference-service** | 8086 | PostgreSQL + Redis | User favorites, search history, custom ordering |
 
-    subgraph "API Gateway"
-        C[Spring Security]
-        D[CORS Config]
-    end
+### Technology Stack
 
-    subgraph "Controller Layer"
-        E[Auth Controller]
-        F[Cafeteria Controller]
-        G[Stall Controller]
-        H[Review Controller]
-        I[Admin Controllers]
-    end
+#### Backend Frameworks
+- **Spring Boot 3.2.3** - Application framework
+- **Spring Data JPA** - PostgreSQL data access
+- **Spring Data MongoDB** - NoSQL data access
+- **Spring Security** - Authentication & authorization
+- **Spring AMQP** - RabbitMQ integration
+- **Spring Cache** - Redis caching abstraction
 
-    subgraph "Service Layer"
-        J[User Service]
-        K[Cafeteria Service]
-        L[Stall Service]
-        M[Review Service]
-        N[Email Service]
-    end
+#### Databases & Storage
+- **PostgreSQL 16** - Relational data (users, cafeterias, stalls, media metadata)
+- **MongoDB 7** - Document store (reviews, likes, reports)
+- **Redis 7** - Distributed cache and session storage
+- **MinIO** - S3-compatible object storage (optional)
 
-    subgraph "Data Layer"
-        O[JPA Repositories]
-        P[MySQL Database]
-    end
+#### Messaging & Monitoring
+- **RabbitMQ 3.12** - Event-driven communication between services
+- **Micrometer + Prometheus** - Metrics collection
+- **Logstash Logback Encoder** - Structured JSON logging
+- **Spring Boot Actuator** - Health checks and metrics endpoints
 
-    A --> C
-    B --> C
-    C --> E
-    C --> F
-    C --> G
-    C --> H
-    C --> I
-    E --> J
-    F --> K
-    G --> L
-    H --> M
-    I --> J
-    J --> O
-    K --> O
-    L --> O
-    M --> O
-    O --> P
-    N --> P
-```
+#### API & Documentation
+- **SpringDoc OpenAPI 3** - Swagger UI and API documentation
+- **JWT (jjwt 0.11.5)** - Stateless authentication
 
-### Architecture Highlights
+#### Development Tools
+- **Lombok** - Reduce boilerplate code
+- **Maven** - Build and dependency management
+- **Docker & Docker Compose** - Containerization
+- **JaCoCo** - Code coverage reports
+- **SpotBugs & OWASP Dependency Check** - Security analysis
 
-- **Monolithic Design**: Single deployable unit with clear module boundaries
-- **JWT Authentication**: Stateless authentication with refresh token support
-- **Role-Based Access Control**: USER and ADMIN roles with method-level security
-- **RESTful API**: Clean, intuitive API design following REST principles
-- **Microservice-Ready**: Modular structure supports future microservice migration
+---
 
-## 📁 Project Structure
+## 📂 Project Structure
 
 ```
-nushungry-backend/
-├── 📄 pom.xml                           # Maven configuration
-├── 📄 README.md                         # This file
-├── 📄 Dockerfile                        # Docker containerization
-├── 📁 .github/workflows/               # CI/CD pipelines
-│   ├── 📄 ci.yml                        # Continuous Integration
-│   └── 📄 cd.yml                        # Continuous Deployment
-├── 📁 src/
-│   ├── 📁 main/
-│   │   ├── 📁 java/com/nushungry/
-│   │   │   ├── 📄 NushungryApplication.java    # Main application class
-│   │   │   ├── 📁 config/                      # Configuration classes
-│   │   │   │   ├── 📄 SecurityConfig.java      # Spring Security config
-│   │   │   │   ├── 📄 CorsConfig.java         # CORS configuration
-│   │   │   │   └── 📄 FileStorageProperties.java
-│   │   │   ├── 📁 controller/                 # REST API controllers
-│   │   │   │   ├── 📄 AuthController.java      # Authentication endpoints
-│   │   │   │   ├── 📄 CafeteriaController.java # Cafeteria management
-│   │   │   │   ├── 📄 StallController.java     # Stall management
-│   │   │   │   ├── 📄 ReviewController.java    # Review system
-│   │   │   │   ├── 📄 UserController.java      # User management
-│   │   │   │   ├── 📁 admin/                   # Admin-specific controllers
-│   │   │   │   │   ├── 📄 AdminDashboardController.java
-│   │   │   │   │   ├── 📄 AdminReportController.java
-│   │   │   │   │   └── 📄 AdminUserController.java
-│   │   │   │   ├── 📄 FavoriteController.java  # Favorites system
-│   │   │   │   ├── 📄 SearchHistoryController.java
-│   │   │   │   ├── 📄 ImageController.java     # Image handling
-│   │   │   │   └── 📄 PasswordResetController.java
-│   │   │   ├── 📁 model/                       # JPA entities
-│   │   │   │   ├── 📄 User.java
-│   │   │   │   ├── 📄 Cafeteria.java
-│   │   │   │   ├── 📄 Stall.java
-│   │   │   │   ├── 📄 Review.java
-│   │   │   │   ├── 📄 Favorite.java
-│   │   │   │   ├── 📄 Image.java
-│   │   │   │   └── 📄 Report.java
-│   │   │   ├── 📁 service/                     # Business logic layer
-│   │   │   ├── 📁 repository/                  # Data access layer
-│   │   │   ├── 📁 dto/                         # Data Transfer Objects
-│   │   │   ├── 📁 filter/                      # Security filters
-│   │   │   │   └── 📄 JwtAuthenticationFilter.java
-│   │   │   └── 📁 util/                        # Utility classes
-│   │   └── 📁 resources/
-│   │       └── 📄 application.properties        # Application configuration
-│   └── 📁 test/                                 # Test suite
-│       ├── 📁 java/com/nushungry/
-│       │   ├── 📄 IntegrationTestBase.java
-│       │   └── 📁 controller/                  # Controller tests
-│       └── 📁 resources/
-└── 📁 target/                                  # Build output
+NUSHungry-Backend-microservices/
+├── user-service/              # User management & authentication
+│   ├── src/
+│   ├── pom.xml
+│   └── Dockerfile
+├── cafeteria-service/         # Cafeteria & stall directory
+│   ├── src/
+│   ├── pom.xml
+│   └── Dockerfile
+├── review-service/            # Review & rating system
+│   ├── src/
+│   ├── pom.xml
+│   └── Dockerfile
+├── media-service/             # Media file management
+│   ├── src/
+│   ├── pom.xml
+│   └── Dockerfile
+├── preference-service/        # User preferences & favorites
+│   ├── src/
+│   ├── pom.xml
+│   └── Dockerfile
+├── docker-compose.yml         # Infrastructure orchestration
+├── .env.example               # Environment variables template
+├── nushungry_db_backup.sql    # Database schema and seed data
+└── README.md
 ```
 
-## 🚀 Key Features
+---
 
-### 🔐 Authentication & Security
-- **JWT Token-based Authentication** with refresh tokens
-- **Role-based Access Control** (USER, ADMIN roles)
-- **Password Reset System** with email verification
-- **CORS Support** for cross-origin requests
-- **BCrypt Password Encryption**
-
-### 🏪 Core Functionality
-- **Cafeteria Management**: Multi-location dining hall management
-- **Stall Management**: Food stall and vendor management
-- **Review System**: User ratings and reviews with moderation
-- **Favorites System**: Personalized favorite stalls/items
-- **Search & History**: Advanced search with history tracking
-- **Image Upload**: Multi-format image handling with thumbnails
-- **Reporting System**: User reporting and admin moderation
-
-### 🛠️ Technical Features
-- **Spring Boot 3.2.3** with Java 17
-- **Spring Security** with JWT authentication
-- **Spring Data JPA** with MySQL database
-- **Swagger/OpenAPI 3.0** documentation
-- **Comprehensive Test Suite** with JUnit 5
-- **CI/CD Pipeline** with GitHub Actions
-- **Docker Containerization** support
-- **Email Service** integration
-- **Image Processing** with thumbnail generation
-
-## 📊 Database Schema
-
-The application uses a relational MySQL database with the following core entities:
-
-```mermaid
-erDiagram
-    User ||--o{ Review : creates
-    User ||--o{ Favorite : has
-    User ||--o{ SearchHistory : tracks
-    User ||--o{ Report : submits
-    Cafeteria ||--o{ Stall : contains
-    Stall ||--o{ Review : receives
-    Stall ||--o{ Favorite : favorited
-    Stall ||--o{ Image : has
-    Review ||--o{ ReviewLike : receives
-    Review ||--o{ Report : reported
-
-    User {
-        Long id PK
-        String username
-        String email
-        String password
-        String role
-        LocalDateTime createdAt
-        LocalDateTime updatedAt
-    }
-
-    Cafeteria {
-        Long id PK
-        String name
-        String description
-        String location
-        String operatingHours
-        LocalDateTime createdAt
-    }
-
-    Stall {
-        Long id PK
-        String name
-        String description
-        String cuisineType
-        BigDecimal priceRange
-        Long cafeteriaId FK
-    }
-
-    Review {
-        Long id PK
-        Integer rating
-        String content
-        Long userId FK
-        Long stallId FK
-        LocalDateTime createdAt
-    }
-```
-
-## 🛡️ Security Configuration
-
-### Authentication Flow
-1. **Login**: User provides credentials → JWT token + refresh token
-2. **API Access**: JWT token sent in Authorization header
-3. **Token Refresh**: Refresh token used to obtain new JWT
-4. **Password Reset**: Email verification code system
-
-### Authorization Matrix
-| Endpoint | Public | User | Admin |
-|----------|--------|------|-------|
-| `GET /api/cafeterias/**` | ✅ | ✅ | ✅ |
-| `GET /api/stalls/**` | ✅ | ✅ | ✅ |
-| `GET /api/reviews/**` | ✅ | ✅ | ✅ |
-| `POST /api/auth/**` | ✅ | ✅ | ✅ |
-| `POST /api/reviews` | ❌ | ✅ | ✅ |
-| `PUT /api/stalls/**` | ❌ | ❌ | ✅ |
-| `DELETE /api/cafeterias/**` | ❌ | ❌ | ✅ |
-| `/api/admin/**` | ❌ | ❌ | ✅ |
-
-## 🔧 Configuration
-
-### Environment Variables
-
-```bash
-# Database Configuration
-SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/nushungry_db
-SPRING_DATASOURCE_USERNAME=your_username
-SPRING_DATASOURCE_PASSWORD=your_password
-
-# JWT Configuration
-JWT_SECRET=your_super_secret_key
-JWT_EXPIRATION=86400000
-
-# Email Configuration (Gmail SMTP)
-SPRING_MAIL_HOST=smtp.gmail.com
-SPRING_MAIL_PORT=587
-SPRING_MAIL_USERNAME=your_email@gmail.com
-SPRING_MAIL_PASSWORD=your_app_password
-```
-
-### Application Properties
-
-```properties
-# Server Configuration
-server.port=8080
-
-# Database Configuration
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-spring.jpa.database-platform=org.hibernate.dialect.MySQLDialect
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-
-# JWT Configuration
-jwt.expiration=86400000
-
-# Email Configuration
-spring.mail.properties.mail.smtp.auth=true
-spring.mail.properties.mail.smtp.starttls.enable=true
-
-# Password Reset Configuration
-password.reset.code.expiration-minutes=15
-```
-
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - **Java 17** or higher
-- **Maven 3.6+**
-- **MySQL 8.0+**
-- **Git**
+- **Maven 3.8+**
+- **Docker & Docker Compose** (recommended)
+- **PostgreSQL 16** (if not using Docker)
+- **MongoDB 7** (if not using Docker)
+- **Redis 7** (if not using Docker)
+- **RabbitMQ 3.12** (if not using Docker)
 
-### Database Setup
-
-1. **Create Database**
-   ```sql
-   CREATE DATABASE nushungry_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-   ```
-
-2. **Import Initial Data** (optional)
-   ```bash
-   mysql -u username -p nushungry_db < backup.sql
-   ```
-
-### Running the Application
-
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/SWE5006-Group-7/NUSHungry-Backend.git
-   cd NUSHungry-Backend
-   ```
-
-2. **Configure Database**
-   ```bash
-   # Edit src/main/resources/application.properties
-   # Or set environment variables
-   ```
-
-3. **Build and Run**
-   ```bash
-   # Using Maven
-   mvn clean install
-   mvn spring-boot:run
-
-   # Or using Java directly
-   mvn clean package
-   java -jar target/nushungry-backend-0.0.1-SNAPSHOT.jar
-   ```
-
-4. **Access the Application**
-   - **API Base URL**: `http://localhost:8080`
-   - **Swagger Documentation**: `http://localhost:8080/swagger-ui.html`
-   - **OpenAPI Spec**: `http://localhost:8080/v3/api-docs`
-
-### Docker Deployment
+### 1. Clone the Repository
 
 ```bash
-# Build Docker Image
-docker build -t nushungry-backend .
-
-# Run Container
-docker run -p 8080:8080 \
-  -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/nushungry_db \
-  -e SPRING_DATASOURCE_USERNAME=root \
-  -e SPRING_DATASOURCE_PASSWORD=password \
-  nushungry-backend
+git clone https://github.com/SWE5006-Group-7/NUSHungry-Backend-microservices.git
+cd NUSHungry-Backend-microservices
 ```
 
-## 📚 API Documentation
-
-### Authentication Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/auth/login` | User login | No |
-| POST | `/api/auth/register` | User registration | No |
-| POST | `/api/auth/refresh` | Refresh JWT token | No |
-| POST | `/api/auth/forgot-password` | Request password reset | No |
-| POST | `/api/auth/reset-password` | Reset password | No |
-
-### Cafeteria Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/cafeterias` | List all cafeterias | No |
-| GET | `/api/cafeterias/{id}` | Get cafeteria details | No |
-| POST | `/api/cafeterias` | Create cafeteria | Admin |
-| PUT | `/api/cafeterias/{id}` | Update cafeteria | Admin |
-| DELETE | `/api/cafeterias/{id}` | Delete cafeteria | Admin |
-
-### Stall Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/stalls` | List all stalls | No |
-| GET | `/api/stalls/{id}` | Get stall details | No |
-| GET | `/api/stalls/cafeteria/{cafeteriaId}` | Get stalls by cafeteria | No |
-| POST | `/api/stalls` | Create stall | Admin |
-| PUT | `/api/stalls/{id}` | Update stall | Admin |
-| DELETE | `/api/stalls/{id}` | Delete stall | Admin |
-
-### Review Endpoints
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/api/reviews` | List reviews | No |
-| GET | `/api/reviews/stall/{stallId}` | Get stall reviews | No |
-| POST | `/api/reviews` | Create review | User |
-| PUT | `/api/reviews/{id}` | Update review | User/Owner |
-| DELETE | `/api/reviews/{id}` | Delete review | User/Owner/Admin |
-
-## 🧪 Testing
-
-### Test Coverage
-- **Unit Tests**: Service layer business logic
-- **Integration Tests**: Database operations and API endpoints
-- **Security Tests**: Authentication and authorization
-- **E2E Tests**: Complete user workflows
-
-### Running Tests
+### 2. Configure Environment Variables
 
 ```bash
-# Run all tests
-mvn test
-
-# Run tests with coverage
-mvn clean test jacoco:report
-
-# Run specific test class
-mvn test -Dtest=AuthControllerTest
-
-# Run integration tests only
-mvn test -Dtest=**/*IntegrationTest
+cp .env.example .env
+# Edit .env with your database credentials and secrets
 ```
 
-### Test Results
-Coverage reports are generated in `target/site/jacoco/index.html`
+**Key Configuration:**
+- `POSTGRES_USER` / `POSTGRES_PASSWORD` - PostgreSQL credentials
+- `MONGO_USER` / `MONGO_PASSWORD` - MongoDB credentials
+- `JWT_SECRET` - JWT signing key (min 256 bits for production)
+- `RABBITMQ_USER` / `RABBITMQ_PASSWORD` - RabbitMQ credentials
+- `MINIO_USER` / `MINIO_PASSWORD` - MinIO object storage credentials
 
-## 🔄 CI/CD Pipeline
+### 3. Start Infrastructure Services (Docker)
 
-### Continuous Integration (CI)
-- **Build & Test**: Automated build and test execution
-- **Code Quality**: SpotBugs static analysis
-- **Security Scan**: OWASP dependency checking
-- **Coverage Report**: JaCoCo code coverage
-- **Container Scan**: Docker image security analysis
-
-### Continuous Deployment (CD)
-- **Docker Build**: Multi-stage Docker builds
-- **ECS Deployment**: Amazon ECS container deployment
-- **Health Checks**: Automated deployment verification
-- **Rollback**: Automatic rollback on deployment failure
-
-## 🛠️ Development
-
-### Code Style
-- **Java 17** features and conventions
-- **Lombok** for reducing boilerplate code
-- **Spring Boot** best practices
-- **RESTful API** design principles
-
-### Contributing
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 🔍 Monitoring & Logging
-
-### Application Logs
-- **Level**: INFO, WARN, ERROR
-- **Format**: Structured JSON logging
-- **Rotation**: Daily log rotation with compression
-
-### Health Checks
-- **Actuator Endpoints**: `/actuator/health`, `/actuator/metrics`
-- **Database Health**: Connection pool monitoring
-- **JWT Health**: Token validation monitoring
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-**Database Connection Issues**
 ```bash
-# Check MySQL service
-sudo systemctl status mysql
-
-# Test connection
-mysql -u username -p -h localhost nushungry_db
+# Start PostgreSQL, MongoDB, Redis, RabbitMQ, MinIO
+docker-compose up -d
 ```
 
-**JWT Token Issues**
-- Verify JWT secret configuration
-- Check token expiration settings
-- Validate refresh token flow
+**Verify Services:**
+```bash
+# PostgreSQL
+docker exec -it nushungry-postgres psql -U postgres -c "SELECT version();"
 
-**CORS Issues**
-- Check allowed origins in SecurityConfig
-- Verify frontend port configuration
-- Ensure preflight OPTIONS requests are handled
+# MongoDB
+docker exec -it nushungry-mongodb mongosh --eval "db.version()"
 
-## 📄 License
+# Redis
+docker exec -it nushungry-redis redis-cli ping
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+# RabbitMQ Management UI
+open http://localhost:15672  # guest/guest
 
-## 🤝 Support
+# MinIO Console
+open http://localhost:9001    # minioadmin/minioadmin
+```
 
-For support and questions:
-- **Issues**: [GitHub Issues](https://github.com/SWE5006-Group-7/NUSHungry-Backend/issues)
-- **Documentation**: [API Docs](http://localhost:8080/swagger-ui.html)
-- **Email**: support@nushungry.com
+### 4. Initialize Databases
+
+```bash
+# PostgreSQL schema and seed data
+docker exec -i nushungry-postgres psql -U postgres < nushungry_db_backup.sql
+
+# MongoDB indexes (optional, auto-created on first run)
+# Review service will create indexes automatically
+```
+
+### 5. Build and Run Services
+
+#### Option A: Run All Services with Maven
+
+```bash
+# Terminal 1 - User Service
+cd user-service
+mvn spring-boot:run
+
+# Terminal 2 - Cafeteria Service
+cd cafeteria-service
+mvn spring-boot:run
+
+# Terminal 3 - Review Service
+cd review-service
+mvn spring-boot:run
+
+# Terminal 4 - Media Service
+cd media-service
+mvn spring-boot:run
+
+# Terminal 5 - Preference Service
+cd preference-service
+mvn spring-boot:run
+```
+
+#### Option B: Build JARs and Run
+
+```bash
+# Build all services
+mvn clean package -DskipTests
+
+# Run services
+java -jar user-service/target/user-service-0.0.1-SNAPSHOT.jar &
+java -jar cafeteria-service/target/cafeteria-service-0.0.1-SNAPSHOT.jar &
+java -jar review-service/target/review-service-0.0.1-SNAPSHOT.jar &
+java -jar media-service/target/media-service-0.0.1-SNAPSHOT.jar &
+java -jar preference-service/target/preference-service-0.0.1-SNAPSHOT.jar &
+```
+
+#### Option C: Docker Compose (Full Stack)
+
+```bash
+# TODO: Add service Dockerfiles to docker-compose.yml
+docker-compose -f docker-compose.full.yml up --build
+```
+
+### 6. Verify Services
+
+```bash
+# Health checks
+curl http://localhost:8081/api/actuator/health  # User Service
+curl http://localhost:8083/actuator/health      # Cafeteria Service
+curl http://localhost:8084/actuator/health      # Review Service
+curl http://localhost:8085/actuator/health      # Media Service
+curl http://localhost:8086/actuator/health      # Preference Service
+```
+
+### 7. Access API Documentation
+
+- **User Service Swagger**: http://localhost:8081/api/swagger-ui.html
+- **Cafeteria Service Swagger**: http://localhost:8083/swagger-ui.html
+- **Review Service Swagger**: http://localhost:8084/swagger-ui.html
+- **Media Service Swagger**: http://localhost:8085/swagger-ui.html
+- **Preference Service Swagger**: http://localhost:8086/swagger-ui.html
 
 ---
 
-**Built with ❤️ by the NUSHungry Team**
+## 📡 API Overview
+
+### Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant UserService
+    participant Database
+    participant EmailService
+
+    Client->>UserService: POST /api/auth/register
+    UserService->>Database: Create user
+    UserService->>EmailService: Send verification email
+    UserService-->>Client: 201 Created
+
+    Client->>UserService: POST /api/auth/login
+    UserService->>Database: Verify credentials
+    UserService-->>Client: { accessToken, refreshToken }
+
+    Client->>UserService: GET /api/users/me (with JWT)
+    UserService->>UserService: Validate JWT
+    UserService-->>Client: User profile
+```
+
+### Review Creation & Rating Update Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant ReviewService
+    participant MongoDB
+    participant RabbitMQ
+    participant CafeteriaService
+
+    Client->>ReviewService: POST /api/reviews
+    ReviewService->>MongoDB: Save review
+    ReviewService->>ReviewService: Calculate new avg rating
+    ReviewService->>RabbitMQ: Publish RatingChangedEvent
+    RabbitMQ->>CafeteriaService: Consume event
+    CafeteriaService->>PostgreSQL: Update stall.averageRating
+    CafeteriaService->>Redis: Evict cache
+    ReviewService-->>Client: 201 Created
+```
+
+### Key Endpoints
+
+#### User Service (Port 8081)
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/refresh` - Refresh access token
+- `GET /api/users/me` - Get current user profile
+- `PUT /api/users/me/password` - Change password
+- `POST /api/password-reset/send-code` - Send reset code via email
+
+#### Cafeteria Service (Port 8083)
+- `GET /api/cafeterias` - List all cafeterias
+- `GET /api/cafeterias/{id}/stalls` - Get stalls in cafeteria
+- `GET /api/stalls/search` - Search stalls (keyword, rating, price)
+- `POST /api/admin/stalls` - Create stall (admin only)
+
+#### Review Service (Port 8084)
+- `POST /api/reviews` - Create review
+- `GET /api/reviews/stall/{stallId}` - Get stall reviews
+- `POST /api/reviews/{id}/like` - Toggle like
+- `POST /api/reviews/{id}/report` - Report review
+- `GET /api/admin/reports` - List all reports (admin)
+
+#### Media Service (Port 8085)
+- `POST /media/upload` - Upload image
+- `GET /media/{fileName}` - Serve image
+- `DELETE /media/admin/images/{id}` - Delete image (admin)
+
+#### Preference Service (Port 8086)
+- `POST /preference/favorite/add` - Add favorite stall
+- `GET /preference/favorite/list` - Get user favorites
+- `POST /preference/search-history/add` - Save search history
+- `DELETE /preference/search-history/clear` - Clear history
+
+---
+
+## 🔒 Security
+
+### Authentication & Authorization
+
+- **JWT-based stateless authentication** with access and refresh tokens
+- **Access token expiration**: 1 hour (configurable)
+- **Refresh token expiration**: 30 days (configurable)
+- **BCrypt password hashing** with salt rounds = 10
+- **Role-based access control** (ROLE_USER, ROLE_ADMIN)`
+
