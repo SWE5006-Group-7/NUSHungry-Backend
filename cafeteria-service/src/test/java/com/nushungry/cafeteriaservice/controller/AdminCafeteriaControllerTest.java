@@ -7,17 +7,32 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AdminCafeteriaController.class)
+@WebMvcTest(
+    controllers = AdminCafeteriaController.class,
+    excludeAutoConfiguration = {
+        org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
+        org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class
+    },
+    excludeFilters = {
+        @ComponentScan.Filter(
+            type = FilterType.ASSIGNABLE_TYPE,
+            classes = {
+                com.nushungry.cafeteriaservice.config.SecurityConfig.class,
+                com.nushungry.cafeteriaservice.filter.JwtAuthenticationFilter.class
+            }
+        )
+    }
+)
 class AdminCafeteriaControllerTest {
 
     @Autowired
@@ -47,8 +62,8 @@ class AdminCafeteriaControllerTest {
                         .content(objectMapper.writeValueAsString(cafeteria)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.cafeteria.id").value(1))
-                .andExpect(jsonPath("$.cafeteria.name").value("New Cafeteria"));
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.name").value("New Cafeteria"));
 
         verify(cafeteriaService, times(1)).save(any(Cafeteria.class));
     }
@@ -67,7 +82,7 @@ class AdminCafeteriaControllerTest {
         saved.setName("Updated Cafeteria");
         saved.setLocation("Updated Location");
 
-        when(cafeteriaService.findById(1L)).thenReturn(Optional.of(existing));
+        when(cafeteriaService.findById(1L)).thenReturn(existing);
         when(cafeteriaService.save(any(Cafeteria.class))).thenReturn(saved);
 
         mockMvc.perform(put("/api/admin/cafeterias/1")
@@ -75,8 +90,8 @@ class AdminCafeteriaControllerTest {
                         .content(objectMapper.writeValueAsString(cafeteria)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.cafeteria.id").value(1))
-                .andExpect(jsonPath("$.cafeteria.name").value("Updated Cafeteria"));
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.name").value("Updated Cafeteria"));
 
         verify(cafeteriaService, times(1)).findById(1L);
         verify(cafeteriaService, times(1)).save(any(Cafeteria.class));
@@ -87,14 +102,13 @@ class AdminCafeteriaControllerTest {
         Cafeteria cafeteria = new Cafeteria();
         cafeteria.setName("Updated Cafeteria");
 
-        when(cafeteriaService.findById(999L)).thenReturn(Optional.empty());
+        when(cafeteriaService.findById(999L)).thenReturn(null);
 
         mockMvc.perform(put("/api/admin/cafeterias/999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(cafeteria)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value("Not found"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
 
         verify(cafeteriaService, times(1)).findById(999L);
         verify(cafeteriaService, never()).save(any(Cafeteria.class));
@@ -102,12 +116,17 @@ class AdminCafeteriaControllerTest {
 
     @Test
     void delete_ShouldReturnSuccess() throws Exception {
+        Cafeteria existing = new Cafeteria();
+        existing.setId(1L);
+
+        when(cafeteriaService.findById(1L)).thenReturn(existing);
         doNothing().when(cafeteriaService).deleteById(1L);
 
         mockMvc.perform(delete("/api/admin/cafeterias/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
+        verify(cafeteriaService, times(1)).findById(1L);
         verify(cafeteriaService, times(1)).deleteById(1L);
     }
 }

@@ -62,7 +62,8 @@ public class User implements UserDetails {
     // UserDetails implementation
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(role.getValue()));
+        // 返回完整的角色名（带ROLE_前缀），以便Spring Security的hasRole()能正确匹配
+        return List.of(new SimpleGrantedAuthority(role.name()));
     }
 
     @Override

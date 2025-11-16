@@ -62,6 +62,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     // 公开访问的路径 - 必须在最前面
                     .requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers("/api/admin/auth/**").permitAll() // 管理员登录也需要公开
                     .requestMatchers("/api/password/**").permitAll()
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                     .requestMatchers("/actuator/**").permitAll()

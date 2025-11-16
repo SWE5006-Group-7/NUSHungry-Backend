@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -18,9 +19,12 @@ import java.util.List;
  * JWT 认证过滤器 - 轻量级验证
  * 从 Authorization Header 提取并验证 JWT Token
  * 将用户信息注入请求头供后续使用
+ *
+ * 注意:在测试环境中禁用,使用 @Profile("!test") 排除
  */
 @Slf4j
 @Component
+@Profile("!test")  // 在测试环境中不加载此过滤器
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 

@@ -10,6 +10,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cache.CacheManager;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -56,12 +57,12 @@ class SearchHistoryServiceCacheTest {
         SearchHistory history1 = new SearchHistory();
         history1.setUserId(userId);
         history1.setKeyword("chicken rice");
-        history1.setCreatedAt(System.currentTimeMillis());
+        history1.setSearchTime(LocalDateTime.now());
 
         SearchHistory history2 = new SearchHistory();
         history2.setUserId(userId);
         history2.setKeyword("laksa");
-        history2.setCreatedAt(System.currentTimeMillis());
+        history2.setSearchTime(LocalDateTime.now());
 
         List<SearchHistory> histories = Arrays.asList(history1, history2);
         when(searchHistoryRepository.findByUserId(userId)).thenReturn(histories);

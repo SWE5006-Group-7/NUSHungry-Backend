@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -243,5 +244,278 @@ public class MediaFileRepositoryTest {
         assertTrue(found.isPresent());
         assertEquals("application/pdf", found.get().getContentType());
         assertEquals(1024 * 1024L, found.get().getSize());
+    }
+
+    // ==================== 增强测试：自定义查询方法 ====================
+
+    @Test
+    void testFindByUrl_Found() {
+        // Arrange
+        entityManager.persistAndFlush(testMediaFile1);
+
+        // Act
+        Optional<MediaFile> found = repository.findByUrl("/media/test1.jpg");
+
+        // Assert
+        assertTrue(found.isPresent());
+        assertEquals("test1.jpg", found.get().getFileName());
+        assertEquals("/media/test1.jpg", found.get().getUrl());
+    }
+
+    @Test
+    void testFindByUrl_NotFound() {
+        // Act
+        Optional<MediaFile> found = repository.findByUrl("/media/nonexistent.jpg");
+
+        // Assert
+        assertFalse(found.isPresent());
+    }
+
+    @Test
+    void testFindByUrl_EmptyUrl() {
+        // Act
+        Optional<MediaFile> found = repository.findByUrl("");
+
+        // Assert
+        assertFalse(found.isPresent());
+    }
+
+    @Test
+    void testCountByType() {
+        // Arrange
+        testMediaFile1.setType("PHOTO");
+        testMediaFile2.setType("PHOTO");
+
+        MediaFile menuFile = new MediaFile();
+        menuFile.setFileName("menu.jpg");
+        menuFile.setUrl("/media/menu.jpg");
+        menuFile.setContentType("image/jpeg");
+        menuFile.setSize(512L);
+        menuFile.setType("MENU");
+
+        entityManager.persistAndFlush(testMediaFile1);
+        entityManager.persistAndFlush(testMediaFile2);
+        entityManager.persistAndFlush(menuFile);
+
+        // Act
+        long photoCount = repository.countByType("PHOTO");
+        long menuCount = repository.countByType("MENU");
+        long avatarCount = repository.countByType("AVATAR");
+
+        // Assert
+        assertEquals(2, photoCount);
+        assertEquals(1, menuCount);
+        assertEquals(0, avatarCount);
+    }
+
+    @Test
+    void testCountByUploadedBy() {
+        // Arrange
+        testMediaFile1.setUploadedBy("user1");
+        testMediaFile2.setUploadedBy("user2");
+
+        MediaFile file3 = new MediaFile();
+        file3.setFileName("test3.jpg");
+        file3.setUrl("/media/test3.jpg");
+        file3.setContentType("image/jpeg");
+        file3.setSize(512L);
+        file3.setUploadedBy("user1");
+
+        entityManager.persistAndFlush(testMediaFile1);
+        entityManager.persistAndFlush(testMediaFile2);
+        entityManager.persistAndFlush(file3);
+
+        // Act
+        long user1Count = repository.countByUploadedBy("user1");
+        long user2Count = repository.countByUploadedBy("user2");
+
+        // Assert
+        assertEquals(2, user1Count);
+        assertEquals(1, user2Count);
+    }
+
+    @Test
+    void testCountByCreatedAtBetween() {
+        // Arrange
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime yesterday = now.minusDays(1);
+        LocalDateTime tomorrow = now.plusDays(1);
+
+        entityManager.persistAndFlush(testMediaFile1);
+        entityManager.persistAndFlush(testMediaFile2);
+
+        // Act
+        long count = repository.countByCreatedAtBetween(yesterday, tomorrow);
+
+        // Assert
+        assertEquals(2, count);
+    }
+
+    @Test
+    void testCountByCreatedAtBetween_NoResults() {
+        // Arrange
+        LocalDateTime futureStart = LocalDateTime.now().plusDays(1);
+        LocalDateTime futureEnd = LocalDateTime.now().plusDays(2);
+
+        entityManager.persistAndFlush(testMediaFile1);
+
+        // Act
+        long count = repository.countByCreatedAtBetween(futureStart, futureEnd);
+
+        // Assert
+        assertEquals(0, count);
+    }
+
+    @Test
+    void testGetTotalSize() {
+        // Arrange
+        testMediaFile1.setSize(1000L);
+        testMediaFile2.setSize(2000L);
+
+        entityManager.persistAndFlush(testMediaFile1);
+        entityManager.persistAndFlush(testMediaFile2);
+
+        // Act
+        Long totalSize = repository.getTotalSize();
+
+        // Assert
+        assertNotNull(totalSize);
+        assertEquals(3000L, totalSize);
+    }
+
+    @Test
+    void testGetTotalSize_EmptyTable() {
+        // Act
+        Long totalSize = repository.getTotalSize();
+
+        // Assert
+        // 空表时可能返回 null 或 0
+        assertTrue(totalSize == null || totalSize == 0L);
+    }
+
+    @Test
+    void testCountByTypeGroupBy() {
+        // Arrange
+        testMediaFile1.setType("PHOTO");
+        testMediaFile2.setType("MENU");
+
+        MediaFile file3 = new MediaFile();
+        file3.setFileName("test3.jpg");
+        file3.setUrl("/media/test3.jpg");
+        file3.setContentType("image/jpeg");
+        file3.setSize(512L);
+        file3.setType("PHOTO");
+
+        entityManager.persistAndFlush(testMediaFile1);
+        entityManager.persistAndFlush(testMediaFile2);
+        entityManager.persistAndFlush(file3);
+
+        // Act
+        List<Object[]> results = repository.countByTypeGroupBy();
+
+        // Assert
+        assertNotNull(results);
+        assertEquals(2, results.size());
+
+        // 验证统计结果
+        boolean foundPhoto = false;
+        boolean foundMenu = false;
+
+        for (Object[] row : results) {
+            String type = (String) row[0];
+            Long count = (Long) row[1];
+
+            if ("PHOTO".equals(type)) {
+                assertEquals(2L, count);
+                foundPhoto = true;
+            } else if ("MENU".equals(type)) {
+                assertEquals(1L, count);
+                foundMenu = true;
+            }
+        }
+
+        assertTrue(foundPhoto);
+        assertTrue(foundMenu);
+    }
+
+    @Test
+    void testCountByUploadedByGroupBy() {
+        // Arrange
+        testMediaFile1.setUploadedBy("user1");
+        testMediaFile2.setUploadedBy("user2");
+
+        MediaFile file3 = new MediaFile();
+        file3.setFileName("test3.jpg");
+        file3.setUrl("/media/test3.jpg");
+        file3.setContentType("image/jpeg");
+        file3.setSize(512L);
+        file3.setUploadedBy("user1");
+
+        entityManager.persistAndFlush(testMediaFile1);
+        entityManager.persistAndFlush(testMediaFile2);
+        entityManager.persistAndFlush(file3);
+
+        // Act
+        List<Object[]> results = repository.countByUploadedByGroupBy();
+
+        // Assert
+        assertNotNull(results);
+        assertEquals(2, results.size());
+
+        // 验证统计结果
+        boolean foundUser1 = false;
+        boolean foundUser2 = false;
+
+        for (Object[] row : results) {
+            String user = (String) row[0];
+            Long count = (Long) row[1];
+
+            if ("user1".equals(user)) {
+                assertEquals(2L, count);
+                foundUser1 = true;
+            } else if ("user2".equals(user)) {
+                assertEquals(1L, count);
+                foundUser2 = true;
+            }
+        }
+
+        assertTrue(foundUser1);
+        assertTrue(foundUser2);
+    }
+
+    @Test
+    void testAutoTimestamps() {
+        // Act
+        MediaFile saved = repository.save(testMediaFile1);
+        entityManager.flush();
+
+        // Assert
+        assertNotNull(saved.getCreatedAt());
+        assertNotNull(saved.getUpdatedAt());
+        // createdAt 和 updatedAt 可能有微小差异,只验证它们都被设置了
+        assertTrue(saved.getCreatedAt().isBefore(saved.getUpdatedAt())
+                || saved.getCreatedAt().equals(saved.getUpdatedAt()),
+                "更新时间应该大于等于创建时间");
+    }
+
+    @Test
+    void testUpdateTimestamp() throws InterruptedException {
+        // Arrange
+        MediaFile saved = repository.save(testMediaFile1);
+        entityManager.flush();
+        LocalDateTime createdAt = saved.getCreatedAt();
+
+        // 等待一小段时间确保时间戳不同
+        Thread.sleep(10);
+
+        // Act - 更新文件
+        saved.setFileName("updated.jpg");
+        MediaFile updated = repository.save(saved);
+        entityManager.flush();
+
+        // Assert
+        assertEquals(createdAt, updated.getCreatedAt(), "创建时间不应改变");
+        assertTrue(updated.getUpdatedAt().isAfter(createdAt) || updated.getUpdatedAt().equals(createdAt),
+                "更新时间应该大于等于创建时间");
     }
 }

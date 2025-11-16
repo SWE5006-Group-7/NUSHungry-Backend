@@ -31,7 +31,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/actuator",
             "/swagger-ui",
             "/v3/api-docs",
-            "/media/images"  // 图片访问公开
+            "/api/upload",    // 上传接口公开
+            "/media/images"   // 图片访问公开
     );
 
     @Override

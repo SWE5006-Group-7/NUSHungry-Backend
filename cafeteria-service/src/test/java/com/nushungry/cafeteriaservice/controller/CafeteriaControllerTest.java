@@ -52,8 +52,8 @@ public class CafeteriaControllerTest {
     void getCafeteriaById_notFound() throws Exception {
         CafeteriaService stubService = new CafeteriaService(null, null) {
             @Override
-            public Optional<Cafeteria> findById(Long id) {
-                return Optional.empty();
+            public Cafeteria findById(Long id) {
+                return null;
             }
         };
         CafeteriaController controller = new CafeteriaController(stubService);

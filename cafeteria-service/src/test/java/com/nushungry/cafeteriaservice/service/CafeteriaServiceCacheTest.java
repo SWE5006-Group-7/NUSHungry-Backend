@@ -94,16 +94,16 @@ class CafeteriaServiceCacheTest {
         when(cafeteriaRepository.findById(cafeteriaId)).thenReturn(Optional.of(cafeteria));
 
         // When - 第一次调用
-        Optional<Cafeteria> result1 = cafeteriaService.findById(cafeteriaId);
-        
+        Cafeteria result1 = cafeteriaService.findById(cafeteriaId);
+
         // When - 第二次调用（应该从缓存获取）
-        Optional<Cafeteria> result2 = cafeteriaService.findById(cafeteriaId);
+        Cafeteria result2 = cafeteriaService.findById(cafeteriaId);
 
         // Then
-        assertThat(result1).isPresent();
-        assertThat(result2).isPresent();
-        assertThat(result1.get().getName()).isEqualTo("Fine Food");
-        
+        assertThat(result1).isNotNull();
+        assertThat(result2).isNotNull();
+        assertThat(result1.getName()).isEqualTo("Fine Food");
+
         // 验证 repository 只被调用一次
         verify(cafeteriaRepository, times(1)).findById(cafeteriaId);
     }
@@ -184,7 +184,7 @@ class CafeteriaServiceCacheTest {
         // When - 填充缓存
         cafeteriaService.findAll();
         cafeteriaService.findById(cafeteriaId);
-        
+
         verify(cafeteriaRepository, times(1)).findAll();
         verify(cafeteriaRepository, times(1)).findById(cafeteriaId);
 

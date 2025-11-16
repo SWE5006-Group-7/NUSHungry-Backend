@@ -1,0 +1,10 @@
+# ⚠️ 警告: 不要提交此文件到 Git!
+# 添加到 .gitignore: terraform.tfvars
+
+project_name = "nushungry"
+environment  = "dev"
+aws_region   = "ap-southeast-1"
+
+# 数据库密码(请替换为强密码)
+db_password      = "YOUR_STRONG_DB_PASSWORD_HERE"
+mongodb_password = "YOUR_STRONG_MONGODB_PASSWORD_HERE"

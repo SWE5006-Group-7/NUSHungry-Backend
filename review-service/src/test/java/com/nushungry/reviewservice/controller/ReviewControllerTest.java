@@ -33,10 +33,39 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration;
+import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration;
+import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
+import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import com.nushungry.reviewservice.util.JwtUtil;
+import com.nushungry.reviewservice.filter.JwtAuthenticationFilter;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
-@AutoConfigureMockMvc(addFilters = false)
-@ActiveProfiles("test")
+@WebMvcTest(
+    controllers = {
+        ReviewController.class,
+        com.nushungry.reviewservice.exception.GlobalExceptionHandler.class
+    },
+    excludeAutoConfiguration = {
+        MongoAutoConfiguration.class,
+        MongoDataAutoConfiguration.class,
+        RabbitAutoConfiguration.class,
+        SecurityAutoConfiguration.class,
+        SecurityFilterAutoConfiguration.class
+    },
+    excludeFilters = {
+        @ComponentScan.Filter(
+            type = FilterType.ASSIGNABLE_TYPE,
+            classes = {
+                JwtAuthenticationFilter.class,
+                com.nushungry.reviewservice.config.MongoConfig.class,
+                com.nushungry.reviewservice.config.RabbitMQConfig.class,
+                com.nushungry.reviewservice.config.SecurityConfig.class
+            }
+        )
+    })
 class ReviewControllerTest {
 
     @Autowired
@@ -312,12 +341,96 @@ class ReviewControllerTest {
 
     @Test
     void createReview_MissingHeaders() throws Exception {
-        // 当缺少必需的 headers 时，Controller 会抛出 NullPointerException 导致 500 错误
-        // 这是预期行为，因为测试环境禁用了过滤器验证
+        // GlobalExceptionHandler 会捕获 MissingRequestHeaderException 并返回 400
         mockMvc.perform(post("/api/reviews")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(createRequest)))
-                .andExpect(status().isInternalServerError());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Missing required header")));
+
+        verify(reviewService, never()).createReview(any(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void createReview_InvalidRating_TooHigh() throws Exception {
+        CreateReviewRequest invalidRequest = CreateReviewRequest.builder()
+                .stallId(1L)
+                .stallName("Test Stall")
+                .rating(6)  // 超出范围 (最大5)
+                .comment("Test comment")
+                .build();
+
+        mockMvc.perform(post("/api/reviews")
+                        .header("X-User-Id", "user123")
+                        .header("X-Username", "testuser")
+                        .header("X-User-Avatar", "avatar.jpg")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+
+        verify(reviewService, never()).createReview(any(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void createReview_InvalidRating_TooLow() throws Exception {
+        CreateReviewRequest invalidRequest = CreateReviewRequest.builder()
+                .stallId(1L)
+                .stallName("Test Stall")
+                .rating(0)  // 超出范围 (最小1)
+                .comment("Test comment")
+                .build();
+
+        mockMvc.perform(post("/api/reviews")
+                        .header("X-User-Id", "user123")
+                        .header("X-Username", "testuser")
+                        .header("X-User-Avatar", "avatar.jpg")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+
+        verify(reviewService, never()).createReview(any(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void createReview_InvalidComment_TooLong() throws Exception {
+        // 创建超过1000字符的评论
+        String longComment = "a".repeat(1001);
+
+        CreateReviewRequest invalidRequest = CreateReviewRequest.builder()
+                .stallId(1L)
+                .stallName("Test Stall")
+                .rating(5)
+                .comment(longComment)
+                .build();
+
+        mockMvc.perform(post("/api/reviews")
+                        .header("X-User-Id", "user123")
+                        .header("X-Username", "testuser")
+                        .header("X-User-Avatar", "avatar.jpg")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
+
+        verify(reviewService, never()).createReview(any(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void createReview_InvalidComment_Blank() throws Exception {
+        CreateReviewRequest invalidRequest = CreateReviewRequest.builder()
+                .stallId(1L)
+                .stallName("Test Stall")
+                .rating(5)
+                .comment("   ")  // 空白评论
+                .build();
+
+        mockMvc.perform(post("/api/reviews")
+                        .header("X-User-Id", "user123")
+                        .header("X-Username", "testuser")
+                        .header("X-User-Avatar", "avatar.jpg")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
 
         verify(reviewService, never()).createReview(any(), anyString(), anyString(), anyString());
     }

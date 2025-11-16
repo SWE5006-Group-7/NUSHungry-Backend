@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -215,7 +216,7 @@ class SearchHistoryRepositoryTest {
         SearchHistory history = new SearchHistory();
         history.setUserId(userId);
         history.setKeyword(keyword);
-        history.setCreatedAt(System.currentTimeMillis());
+        history.setSearchTime(LocalDateTime.now());
         return history;
     }
 }

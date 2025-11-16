@@ -44,7 +44,7 @@ public class CafeteriaServiceTest {
     @Test
     void findById_notFound() {
         when(cafeteriaRepository.findById(1L)).thenReturn(Optional.empty());
-        Optional<Cafeteria> res = cafeteriaService.findById(1L);
-        assertTrue(res.isEmpty());
+        Cafeteria res = cafeteriaService.findById(1L);
+        assertNull(res);
     }
 }

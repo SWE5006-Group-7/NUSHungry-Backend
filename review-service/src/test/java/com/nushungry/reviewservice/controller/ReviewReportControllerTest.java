@@ -38,7 +38,10 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAut
 import com.nushungry.reviewservice.util.JwtUtil;
 import com.nushungry.reviewservice.filter.JwtAuthenticationFilter;
 
-@WebMvcTest(controllers = ReviewReportController.class,
+@WebMvcTest(controllers = {
+        ReviewReportController.class,
+        com.nushungry.reviewservice.exception.GlobalExceptionHandler.class
+    },
     excludeAutoConfiguration = {
         MongoAutoConfiguration.class,
         MongoDataAutoConfiguration.class,
@@ -67,12 +70,6 @@ class ReviewReportControllerTest {
 
     @MockBean
     private ReviewReportService reviewReportService;
-
-    @MockBean
-    private JwtUtil jwtUtil;
-
-    @MockBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     private ReportResponse reportResponse;
     private CreateReportRequest createReportRequest;

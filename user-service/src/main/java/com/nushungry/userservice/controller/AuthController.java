@@ -10,8 +10,10 @@ import com.nushungry.userservice.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,10 +27,10 @@ public class AuthController {
     private final UserService userService;
     private final RefreshTokenService refreshTokenService;
 
-    @PostMapping("/register")
+    @PostMapping(value = "/register", produces = "application/json")
     @Operation(summary = "Register a new user")
     public ResponseEntity<AuthResponse> register(
-            @RequestBody RegisterRequest request,
+            @Valid @RequestBody RegisterRequest request,
             HttpServletRequest httpRequest) {
         try {
             String ipAddress = getClientIpAddress(httpRequest);
@@ -37,17 +39,17 @@ public class AuthController {
 
             AuthResponse response = userService.register(request, ipAddress, userAgent);
             log.info("User successfully registered: {}", request.getUsername());
-            return ResponseEntity.ok(response);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (RuntimeException e) {
             log.error("Registration failed for user {}: {}", request.getUsername(), e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
 
-    @PostMapping("/login")
+    @PostMapping(value = "/login", produces = "application/json")
     @Operation(summary = "Login user")
     public ResponseEntity<AuthResponse> login(
-            @RequestBody LoginRequest request,
+            @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
         try {
             String ipAddress = getClientIpAddress(httpRequest);
@@ -59,13 +61,13 @@ public class AuthController {
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             log.error("Login failed for user {}: {}", request.getUsername(), e.getMessage());
-            return ResponseEntity.status(401).build();
+            return ResponseEntity.badRequest().build();
         }
     }
 
     @PostMapping("/refresh")
     @Operation(summary = "Refresh access token using refresh token")
-    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
         try {
             log.info("Token refresh request received");
 
@@ -87,7 +89,7 @@ public class AuthController {
 
     @PostMapping("/logout")
     @Operation(summary = "Logout user and revoke refresh token")
-    public ResponseEntity<Void> logout(@RequestBody RefreshTokenRequest request) {
+    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
         try {
             log.info("Logout request received");
             refreshTokenService.revokeRefreshToken(request.getRefreshToken());

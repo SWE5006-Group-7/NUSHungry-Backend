@@ -1,6 +1,9 @@
-# Maven
+# .dockerignore for cafeteria-service
+# 排除不必要的文件,减少 Docker build context 大小,加快构建速度
+
+# ==================== Maven ====================
 target/
-!.mvn/wrapper/maven-wrapper.jar
+!target/*.jar
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -9,50 +12,99 @@ release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
 
-# IDE
+# ==================== IDE ====================
+# IntelliJ IDEA
 .idea/
-.vscode/
 *.iml
 *.ipr
 *.iws
-.project
+out/
+
+# Eclipse
 .classpath
+.project
 .settings/
-*.swp
-*.swo
-*~
+bin/
 
-# Logs
-logs/
+# VS Code
+.vscode/
+*.code-workspace
+
+# NetBeans
+nbproject/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# ==================== 日志文件 ====================
 *.log
+logs/
+*.log.*
+*.log.gz
 
-# OS
+# ==================== 操作系统 ====================
+# macOS
 .DS_Store
-Thumbs.db
+.AppleDouble
+.LSOverride
+._*
 
-# Git
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+# ==================== Git ====================
 .git/
 .gitignore
 .gitattributes
+.github/
 
-# Docker
+# ==================== Docker ====================
 Dockerfile
-docker-compose*.yml
 .dockerignore
+docker-compose*.yml
 
-# Documentation
+# ==================== 文档和说明 ====================
 README.md
+README*.md
+CHANGELOG.md
 DEPLOYMENT.md
+LICENSE
+*.txt
 docs/
 
-# Scripts
+# ==================== 脚本 ====================
 scripts/
 
-# Test
+# ==================== 测试相关 ====================
 src/test/
+test-output/
+coverage/
+*.coverage
+.nyc_output/
 
-# Temporary files
+# ==================== 临时文件 ====================
 *.tmp
+*.temp
+*.swp
+*.swo
 *.bak
 *.cache
+
+# ==================== 环境配置 ====================
+.env
+.env.local
+.env.*.local
+*.properties.local
+
+# ==================== 其他 ====================
+node_modules/
+*.class

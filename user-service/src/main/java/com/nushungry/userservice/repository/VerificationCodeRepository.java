@@ -26,7 +26,7 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
      */
     @Query("SELECT vc FROM VerificationCode vc WHERE vc.email = :email " +
            "AND vc.type = :type AND vc.used = false AND vc.expiresAt > :now " +
-           "ORDER BY vc.createdAt DESC")
+           "ORDER BY vc.createdAt DESC LIMIT 1")
     Optional<VerificationCode> findLatestValidCode(String email, String type, LocalDateTime now);
 
     /**

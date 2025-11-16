@@ -5,11 +5,16 @@ import com.nushungry.reviewservice.event.PriceChangedEvent;
 import com.nushungry.reviewservice.event.RatingChangedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 
@@ -17,24 +22,34 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 
-@SpringBootTest
-@ActiveProfiles("test")
+@ExtendWith(MockitoExtension.class)
 class EventPublisherServiceTest {
 
-    @MockBean
+    @Mock
     private RabbitTemplate rabbitTemplate;
 
-    @Autowired
+    @InjectMocks
     private EventPublisherService eventPublisherService;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    // 使用真实的 ObjectMapper 而不是 Mock,用于 JSON 序列化测试
+    private final ObjectMapper objectMapper;
+
+    {
+        // 注册 JavaTimeModule 以支持 LocalDateTime 序列化
+        objectMapper = new ObjectMapper();
+        objectMapper.findAndRegisterModules();
+    }
 
     private RatingChangedEvent ratingChangedEvent;
     private PriceChangedEvent priceChangedEvent;
 
     @BeforeEach
     void setUp() {
+        // 使用 ReflectionTestUtils 注入 @Value 配置 - 字段名必须与实际代码一致
+        ReflectionTestUtils.setField(eventPublisherService, "reviewExchange", "review.exchange");
+        ReflectionTestUtils.setField(eventPublisherService, "ratingChangedRoutingKey", "review.rating.changed");
+        ReflectionTestUtils.setField(eventPublisherService, "priceChangedRoutingKey", "review.price.changed");
+
         ratingChangedEvent = RatingChangedEvent.builder()
                 .stallId(1L)
                 .newAverageRating(4.5)
@@ -160,8 +175,8 @@ class EventPublisherServiceTest {
 
         // Then - verify correct routing key is used
         verify(rabbitTemplate).convertAndSend(
-                "test.review.exchange",
-                "test.review.rating.changed",
+                "review.exchange",
+                "review.rating.changed",
                 ratingChangedEvent
         );
     }
@@ -174,8 +189,8 @@ class EventPublisherServiceTest {
 
         // Then - verify correct routing key is used
         verify(rabbitTemplate).convertAndSend(
-                "test.review.exchange",
-                "test.review.price.changed",
+                "review.exchange",
+                "review.price.changed",
                 priceChangedEvent
         );
     }

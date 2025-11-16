@@ -28,7 +28,7 @@ class MediaServiceIntegrationTest {
                 "test image content".getBytes()
         );
 
-        mockMvc.perform(multipart("/media/upload")
+        mockMvc.perform(multipart("/api/upload/upload")
                         .file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.url").exists())
@@ -45,7 +45,7 @@ class MediaServiceIntegrationTest {
                 "test image content".getBytes()
         );
 
-        mockMvc.perform(multipart("/media/upload")
+        mockMvc.perform(multipart("/api/upload/upload")
                         .file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.url").exists())
@@ -63,7 +63,7 @@ class MediaServiceIntegrationTest {
                 largeContent
         );
 
-        mockMvc.perform(multipart("/media/upload")
+        mockMvc.perform(multipart("/api/upload/upload")
                         .file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size").value(largeContent.length));
@@ -79,7 +79,7 @@ class MediaServiceIntegrationTest {
         );
 
         // 空文件也可以上传（业务逻辑可能需要验证）
-        mockMvc.perform(multipart("/media/upload")
+        mockMvc.perform(multipart("/api/upload/upload")
                         .file(file))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size").value(0));

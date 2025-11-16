@@ -23,7 +23,10 @@ import org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAut
 import com.nushungry.reviewservice.util.JwtUtil;
 import com.nushungry.reviewservice.filter.JwtAuthenticationFilter;
 
-@WebMvcTest(controllers = ReviewLikeController.class,
+@WebMvcTest(controllers = {
+        ReviewLikeController.class,
+        com.nushungry.reviewservice.exception.GlobalExceptionHandler.class
+    },
     excludeAutoConfiguration = {
         MongoAutoConfiguration.class,
         MongoDataAutoConfiguration.class,
