@@ -36,11 +36,3 @@ target/
 *.jpg
 
 .spec-workflow/
-
-.env
-
-.terraform.lock.hcl
-.claude/
-CLAUDE.md
-terraform.tfvars
-.serena/
