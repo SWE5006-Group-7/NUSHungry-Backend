@@ -28,7 +28,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/admin/reviews")
+@RequestMapping("/api/reviews/admin")
 @RequiredArgsConstructor
 @Tag(name = "管理员评价管理", description = "管理员评价管理相关接口")
 @PreAuthorize("hasRole('ADMIN')")
