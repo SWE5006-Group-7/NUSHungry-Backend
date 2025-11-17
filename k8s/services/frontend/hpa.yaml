@@ -1,0 +1,65 @@
+# ============================================
+# NUSHungry Frontend - Horizontal Pod Autoscaler
+# 水平自动扩展配置（可选）
+# ============================================
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend-hpa
+  namespace: nushungry-dev
+  labels:
+    app: frontend
+spec:
+  # 目标 Deployment
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend
+  
+  # 副本数范围
+  minReplicas: 2    # 最小 2 个副本（保证高可用）
+  maxReplicas: 6    # 最大 6 个副本（前端静态资源，扩展性需求较低）
+  
+  # 扩缩容指标
+  metrics:
+  # CPU 使用率指标
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # CPU 平均使用率超过 70% 时扩容
+  
+  # 内存使用率指标
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # 内存平均使用率超过 80% 时扩容
+  
+  # 扩缩容行为（K8s 1.18+）
+  behavior:
+    # 扩容行为
+    scaleUp:
+      # 扩容策略
+      policies:
+      - type: Pods
+        value: 2              # 每次扩容最多增加 2 个 Pod
+        periodSeconds: 60     # 60 秒内
+      - type: Percent
+        value: 50             # 或者增加当前副本数的 50%
+        periodSeconds: 60
+      selectPolicy: Max       # 选择扩容幅度最大的策略
+      stabilizationWindowSeconds: 0  # 扩容立即执行（无稳定窗口）
+    
+    # 缩容行为
+    scaleDown:
+      # 缩容策略
+      policies:
+      - type: Pods
+        value: 1              # 每次缩容最多减少 1 个 Pod
+        periodSeconds: 60     # 60 秒内
+      selectPolicy: Min       # 选择缩容幅度最小的策略（保守缩容）
+      stabilizationWindowSeconds: 300  # 缩容前观察 5 分钟（避免频繁波动）

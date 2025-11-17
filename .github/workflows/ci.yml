@@ -1,0 +1,418 @@
+# ============================================================================
+# 持续集成工作流 (CI)
+# ============================================================================
+# 用途: 代码质量检查、单元测试、覆盖率分析、安全扫描
+# 触发: Pull Request 或 Push 到任何分支
+# ============================================================================
+
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - test
+  push:
+    branches:
+      - main
+      - develop
+      - test
+
+env:
+  JAVA_VERSION: '17'
+  MAVEN_OPTS: -Xmx3072m
+  COVERAGE_THRESHOLD: 70
+
+jobs:
+  # =========================================================================
+  # Job 1: 代码格式和语法检查
+  # =========================================================================
+  code-quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 完整历史,用于 SonarQube 等工具
+
+      - name: Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Validate Maven POMs
+        run: mvn validate
+
+      - name: Check code formatting
+        run: mvn spotless:check || echo "Code formatting issues found, but continuing..."
+        continue-on-error: true
+
+  # =========================================================================
+  # Job 2: 单元测试 (并行执行所有服务)
+  # =========================================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    strategy:
+      fail-fast: false  # 即使一个服务失败,其他服务继续测试
+      matrix:
+        service:
+          - user-service
+          - cafeteria-service
+          - review-service
+          - media-service
+          - preference-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run tests for ${{ matrix.service }}
+        working-directory: ${{ matrix.service }}
+        run: mvn clean test -B
+
+      - name: Generate JaCoCo coverage report
+        working-directory: ${{ matrix.service }}
+        run: mvn jacoco:report
+
+      - name: Check coverage threshold
+        working-directory: ${{ matrix.service }}
+        run: |
+          mvn jacoco:check -Djacoco.minimum.coverage=${{ env.COVERAGE_THRESHOLD }} || \
+          echo "::warning::${{ matrix.service }} coverage below ${{ env.COVERAGE_THRESHOLD }}%"
+        continue-on-error: true
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.service }}
+          path: ${{ matrix.service }}/target/site/jacoco/
+          retention-days: 7
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Test Results - ${{ matrix.service }}
+          path: ${{ matrix.service }}/target/surefire-reports/*.xml
+          reporter: java-junit
+          fail-on-error: false
+
+  # =========================================================================
+  # Job 3: 安全扫描
+  # =========================================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: code-quality
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: OWASP Dependency Check
+        run: |
+          mvn dependency-check:check \
+            -Dformat=HTML \
+            -Dformat=JSON \
+            -DfailBuildOnCVSS=7 \
+            -DsuppressionFile=.github/dependency-check-suppressions.xml || true
+        continue-on-error: true
+
+      - name: Upload OWASP report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owasp-dependency-check-report
+          path: target/dependency-check-report.html
+          retention-days: 30
+
+      - name: SpotBugs analysis
+        run: mvn spotbugs:check -DfailOnError=false || echo "SpotBugs issues found"
+        continue-on-error: true
+
+      - name: Upload SpotBugs report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: spotbugs-report
+          path: |
+            **/target/spotbugsXml.xml
+            **/target/spotbugs.html
+          retention-days: 30
+
+  # =========================================================================
+  # Job 4: 集成测试 (可选,需要基础设施)
+  # =========================================================================
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    if: github.event_name == 'pull_request'
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: nushungry_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mongodb:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin123
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      rabbitmq:
+        image: rabbitmq:3.12-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        ports:
+          - 5672:5672
+          - 15672:15672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for PostgreSQL..."
+          until pg_isready -h localhost -p 5432; do sleep 2; done
+
+          echo "Waiting for MongoDB..."
+          sleep 10
+
+          echo "Waiting for RabbitMQ..."
+          until curl -f http://localhost:15672 > /dev/null 2>&1; do sleep 2; done
+
+          echo "All services ready!"
+
+      - name: Run integration tests
+        run: mvn verify -Pintegration-tests -B
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/nushungry_test
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: postgres
+          SPRING_DATA_MONGODB_URI: mongodb://admin:admin123@localhost:27017/nushungry_test?authSource=admin
+          SPRING_REDIS_HOST: localhost
+          SPRING_REDIS_PORT: 6379
+          SPRING_RABBITMQ_HOST: localhost
+          SPRING_RABBITMQ_PORT: 5672
+          SPRING_RABBITMQ_USERNAME: guest
+          SPRING_RABBITMQ_PASSWORD: guest
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: |
+            **/target/failsafe-reports/
+            **/target/site/jacoco-it/
+          retention-days: 7
+
+  # =========================================================================
+  # Job 5: 构建验证 (确保可以成功构建 JAR)
+  # =========================================================================
+  build-validation:
+    name: Build Validation
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build all services
+        run: mvn clean package -DskipTests -B
+
+      - name: Verify JAR files
+        run: |
+          echo "Checking generated JAR files..."
+          for service in user-service cafeteria-service review-service media-service preference-service; do
+            jar_file="$service/target/$service-0.0.1-SNAPSHOT.jar"
+            if [ -f "$jar_file" ]; then
+              echo "✅ $jar_file exists ($(du -h "$jar_file" | cut -f1))"
+            else
+              echo "❌ $jar_file not found!"
+              exit 1
+            fi
+          done
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: jar-files
+          path: |
+            **/target/*.jar
+            !**/target/original-*.jar
+          retention-days: 3
+
+  # =========================================================================
+  # Job 6: Docker 构建验证
+  # =========================================================================
+  docker-build-validation:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    needs: build-validation
+
+    strategy:
+      matrix:
+        service:
+          - user-service
+          - cafeteria-service
+          - review-service
+          - media-service
+          - preference-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build JAR for ${{ matrix.service }}
+        working-directory: ${{ matrix.service }}
+        run: mvn clean package -DskipTests -B
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image for ${{ matrix.service }}
+        working-directory: ${{ matrix.service }}
+        run: |
+          docker build \
+            --tag ${{ matrix.service }}:ci-${{ github.sha }} \
+            --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+            --build-arg VCS_REF=${{ github.sha }} \
+            .
+
+      - name: Verify Docker image
+        run: |
+          echo "Image created successfully:"
+          docker images ${{ matrix.service }}:ci-${{ github.sha }}
+
+          echo "Image size:"
+          docker images ${{ matrix.service }}:ci-${{ github.sha }} --format "{{.Size}}"
+
+  # =========================================================================
+  # Job 7: CI 总结报告
+  # =========================================================================
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs:
+      - code-quality
+      - unit-tests
+      - security-scan
+      - build-validation
+      - docker-build-validation
+    if: always()
+
+    steps:
+      - name: Generate CI summary
+        run: |
+          echo "# 🚀 CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Actor**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Code Quality: ${{ needs.code-quality.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit Tests: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build Validation: ${{ needs.build-validation.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker Build: ${{ needs.docker-build-validation.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "✅ Ready to trigger build-and-push workflow" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ Merge to main branch to trigger deployment" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check overall status
+        run: |
+          if [ "${{ needs.code-quality.result }}" != "success" ] || \
+             [ "${{ needs.unit-tests.result }}" != "success" ] || \
+             [ "${{ needs.build-validation.result }}" != "success" ] || \
+             [ "${{ needs.docker-build-validation.result }}" != "success" ]; then
+            echo "❌ CI pipeline failed!"
+            exit 1
+          fi
+          echo "✅ All CI checks passed!"

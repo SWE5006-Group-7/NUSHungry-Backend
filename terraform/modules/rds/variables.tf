@@ -20,7 +20,7 @@ variable "allowed_security_groups" {
 
 variable "engine_version" {
   type    = string
-  default = "16.1"
+  default = "16"  # PostgreSQL 16.x 最新稳定版本
 }
 
 variable "instance_class" {

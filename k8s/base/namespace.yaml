@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nushungry-dev
+  labels:
+    name: nushungry-dev
+    environment: development
+    app: nushungry

@@ -1,0 +1,169 @@
+# ============================================
+# NUSHungry Frontend - Kubernetes Deployment
+# ============================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: nushungry-dev
+  labels:
+    app: frontend
+    component: web
+    tier: frontend
+spec:
+  # 副本数量（生产环境建议 >= 2，确保高可用）
+  replicas: 2
+  
+  # 滚动更新策略
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # 滚动更新时最多创建多少个新 Pod（相对于期望副本数）
+      maxSurge: 1
+      # 滚动更新时最多删除多少个旧 Pod（相对于期望副本数）
+      maxUnavailable: 0  # 确保至少有 2 个 Pod 始终运行
+  
+  # 选择器：匹配 Pod 标签
+  selector:
+    matchLabels:
+      app: frontend
+  
+  # Pod 模板
+  template:
+    metadata:
+      labels:
+        app: frontend
+        component: web
+        tier: frontend
+      annotations:
+        # Prometheus 监控注解（如果启用了 Prometheus）
+        prometheus.io/scrape: "false"  # 前端不需要 Prometheus 抓取
+    
+    spec:
+      # 容器配置
+      containers:
+      - name: frontend
+        # 镜像地址（使用占位符，部署时替换）
+        # 格式：${ECR_REGISTRY}/nushungry-frontend:${IMAGE_TAG}
+        image: ${ECR_REGISTRY}/nushungry-frontend:${IMAGE_TAG}
+        
+        # 镜像拉取策略
+        imagePullPolicy: IfNotPresent
+        
+        # 容器端口
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        
+        # 环境变量（如果需要动态配置）
+        # env:
+        # - name: NGINX_HOST
+        #   value: "nushungry.com"
+        
+        # 资源限制
+        resources:
+          # 请求资源（调度器用于分配节点）
+          requests:
+            memory: "128Mi"   # 最小 128MB 内存
+            cpu: "100m"       # 最小 0.1 核 CPU
+          # 资源上限（超过会被限制或重启）
+          limits:
+            memory: "256Mi"   # 最大 256MB 内存
+            cpu: "200m"       # 最大 0.2 核 CPU
+        
+        # ==================== 健康检查 ====================
+        # 存活探针：检测容器是否存活（失败则重启 Pod）
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 10   # 容器启动后等待 10 秒再开始探测
+          periodSeconds: 10          # 每 10 秒探测一次
+          timeoutSeconds: 3          # 探测超时时间 3 秒
+          successThreshold: 1        # 连续成功 1 次视为健康
+          failureThreshold: 3        # 连续失败 3 次视为不健康，重启容器
+        
+        # 就绪探针：检测容器是否就绪（失败则不接收流量）
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 5    # 容器启动后等待 5 秒再开始探测
+          periodSeconds: 5           # 每 5 秒探测一次
+          timeoutSeconds: 3          # 探测超时时间 3 秒
+          successThreshold: 1        # 连续成功 1 次视为就绪
+          failureThreshold: 2        # 连续失败 2 次视为未就绪
+        
+        # 启动探针：检测容器是否启动完成（失败则重启 Pod）
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 80
+            scheme: HTTP
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 10       # 最多失败 10 次（50 秒内启动完成）
+        
+        # ==================== 生命周期钩子 ====================
+        lifecycle:
+          # 优雅关闭：Pod 终止前执行
+          preStop:
+            exec:
+              # 延迟 10 秒，确保流量完全排空
+              command: ["/bin/sh", "-c", "sleep 10"]
+      
+      # ==================== Pod 级别配置 ====================
+      # 优雅终止时间（秒）
+      terminationGracePeriodSeconds: 30
+      
+      # DNS 策略
+      dnsPolicy: ClusterFirst
+      
+      # 重启策略
+      restartPolicy: Always
+      
+      # 节点选择器（可选，用于将 Pod 调度到特定节点）
+      # nodeSelector:
+      #   workload-type: web
+      
+      # 节点亲和性（可选，高级调度策略）
+      # affinity:
+      #   podAntiAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #     - weight: 100
+      #       podAffinityTerm:
+      #         labelSelector:
+      #           matchExpressions:
+      #           - key: app
+      #             operator: In
+      #             values:
+      #             - frontend
+      #         topologyKey: kubernetes.io/hostname
+      
+      # 容忍度（可选，允许调度到有污点的节点）
+      # tolerations:
+      # - key: "node-role"
+      #   operator: "Equal"
+      #   value: "frontend"
+      #   effect: "NoSchedule"
+
+---
+# ============================================
+# ConfigMap: Nginx 配置（可选）
+# 如果需要动态调整 Nginx 配置而不重新构建镜像
+# ============================================
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: frontend-nginx-config
+#   namespace: nushungry-dev
+# data:
+#   nginx.conf: |
+#     # Nginx 配置内容
+#     # ...

@@ -1,0 +1,182 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: review-service
+  namespace: nushungry-dev
+  labels:
+    app: review-service
+    component: backend
+    tier: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: review-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: review-service
+        component: backend
+        tier: api
+    spec:
+      containers:
+      - name: review-service
+        image: ${ECR_REGISTRY}/review-service:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8084
+          name: http
+          protocol: TCP
+        env:
+        # 服务端口
+        - name: SERVER_PORT
+          value: "8084"
+
+        # MongoDB 配置（从 Secret 获取）
+        # 使用独立属性配置以匹配 application.properties
+        - name: MONGODB_HOST
+          value: "nushungry-dev-docdb.cluster-c38yccm2megq.ap-southeast-1.docdb.amazonaws.com"
+        - name: MONGODB_PORT
+          value: "27017"
+        - name: MONGODB_DATABASE
+          value: "review_db"
+        - name: MONGODB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: username
+        - name: MONGODB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: password
+        - name: MONGODB_AUTH_DB
+          value: "admin"
+
+        # RabbitMQ 配置（从 Amazon MQ Secret 获取）
+        - name: SPRING_RABBITMQ_HOST
+          valueFrom:
+            secretKeyRef:
+              name: amazonmq-secret
+              key: host
+        - name: SPRING_RABBITMQ_PORT
+          valueFrom:
+            secretKeyRef:
+              name: amazonmq-secret
+              key: port
+        - name: SPRING_RABBITMQ_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: amazonmq-secret
+              key: username
+        - name: SPRING_RABBITMQ_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: amazonmq-secret
+              key: password
+        - name: SPRING_RABBITMQ_VIRTUAL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: amazonmq-secret
+              key: vhost
+        # Amazon MQ 强制 TLS 连接
+        - name: SPRING_RABBITMQ_SSL_ENABLED
+          valueFrom:
+            secretKeyRef:
+              name: amazonmq-secret
+              key: ssl
+
+        # 服务发现配置
+        - name: USER_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: USER_SERVICE_URL
+        - name: CAFETERIA_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: CAFETERIA_SERVICE_URL
+
+        # 日志配置
+        - name: LOGGING_LEVEL_ROOT
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: LOGGING_LEVEL_ROOT
+        - name: LOGGING_LEVEL_COM_NUSHUNGRY
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: LOGGING_LEVEL_COM_NUSHUNGRY
+
+        # Actuator 配置
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+
+        # 时区配置
+        - name: TZ
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: TZ
+
+        # JVM 配置
+        - name: JAVA_OPTS
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: JAVA_OPTS
+
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8084
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8084
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
+
+        # 挂载 DocumentDB CA 证书
+        volumeMounts:
+        - name: documentdb-ca-cert
+          mountPath: /etc/documentdb
+          readOnly: true
+
+      # 定义证书卷
+      volumes:
+      - name: documentdb-ca-cert
+        secret:
+          secretName: documentdb-ca-cert
+
+      terminationGracePeriodSeconds: 30

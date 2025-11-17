@@ -1,0 +1,161 @@
+---
+# ================================================================
+# RDS 数据库初始化 Kubernetes Job
+# ================================================================
+# 用途: 在 EKS 集群中初始化 RDS PostgreSQL 数据库
+# 执行: kubectl apply -f k8s/jobs/init-rds-databases.yaml
+# 查看: kubectl logs -f job/init-rds-databases -n nushungry-dev
+# ================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: init-rds-databases-script
+  namespace: nushungry-dev
+data:
+  init-databases.sql: |
+    -- ================================================================
+    -- NUSHungry 微服务数据库初始化脚本
+    -- ================================================================
+
+    -- 用户服务数据库
+    SELECT 'CREATE DATABASE nushungry_users'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'nushungry_users')\gexec
+
+    -- 食堂服务数据库
+    SELECT 'CREATE DATABASE cafeteria_db'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'cafeteria_db')\gexec
+
+    -- 媒体服务数据库
+    SELECT 'CREATE DATABASE media_db'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'media_db')\gexec
+
+    -- 偏好服务数据库
+    SELECT 'CREATE DATABASE preference_db'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'preference_db')\gexec
+
+    -- ================================================================
+    -- 授予数据库权限
+    -- ================================================================
+
+    GRANT ALL PRIVILEGES ON DATABASE nushungry_users TO postgres;
+    GRANT ALL PRIVILEGES ON DATABASE cafeteria_db TO postgres;
+    GRANT ALL PRIVILEGES ON DATABASE media_db TO postgres;
+    GRANT ALL PRIVILEGES ON DATABASE preference_db TO postgres;
+
+    -- ================================================================
+    -- 验证数据库创建
+    -- ================================================================
+
+    SELECT datname, pg_size_pretty(pg_database_size(datname)) as size
+    FROM pg_database
+    WHERE datname IN ('nushungry_users', 'cafeteria_db', 'media_db', 'preference_db')
+    ORDER BY datname;
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-rds-databases
+  namespace: nushungry-dev
+  labels:
+    app: init-rds-databases
+    component: database
+spec:
+  # Job 配置
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600  # 10 分钟后自动清理
+
+  template:
+    metadata:
+      labels:
+        app: init-rds-databases
+    spec:
+      restartPolicy: OnFailure
+
+      containers:
+      - name: postgres-client
+        image: postgres:15-alpine
+
+        env:
+        # 从 ConfigMap 读取数据库配置
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: database-config
+              key: DB_HOST
+
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: database-config
+              key: DB_PORT
+
+        - name: DB_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: database-config
+              key: DB_USERNAME
+
+        # 从 Secret 读取密码
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: DB_PASSWORD
+
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+
+          echo "================================================"
+          echo "开始初始化 RDS PostgreSQL 数据库"
+          echo "================================================"
+          echo "数据库端点: ${DB_HOST}:${DB_PORT}"
+          echo "用户名: ${DB_USERNAME}"
+          echo ""
+
+          # 测试连接
+          echo "📡 测试数据库连接..."
+          psql -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USERNAME} -d postgres -c "SELECT version();" || {
+            echo "❌ 无法连接到数据库,请检查网络和安全组配置"
+            exit 1
+          }
+
+          echo "✅ 数据库连接成功!"
+          echo ""
+
+          # 执行初始化 SQL
+          echo "📦 开始创建微服务数据库..."
+          psql -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USERNAME} -d postgres -f /scripts/init-databases.sql --echo-errors
+
+          echo ""
+          echo "================================================"
+          echo "✅ 所有微服务数据库初始化成功!"
+          echo "================================================"
+          echo "已创建的数据库:"
+          echo "  📦 nushungry_users   - User Service"
+          echo "  📦 cafeteria_db      - Cafeteria Service"
+          echo "  📦 media_db          - Media Service"
+          echo "  📦 preference_db     - Preference Service"
+          echo "================================================"
+
+        volumeMounts:
+        - name: init-script
+          mountPath: /scripts
+          readOnly: true
+
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+
+      volumes:
+      - name: init-script
+        configMap:
+          name: init-rds-databases-script

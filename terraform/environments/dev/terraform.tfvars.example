@@ -1,10 +1,76 @@
-# ⚠️ 警告: 不要提交此文件到 Git!
-# 添加到 .gitignore: terraform.tfvars
+# ================================================================
+# Terraform 变量配置示例
+# ================================================================
+# 复制此文件为 terraform.tfvars 并填入真实值
+# ⚠️  terraform.tfvars 已在 .gitignore 中,不会被提交到 Git
+#
+# 复制命令: cp terraform.tfvars.example terraform.tfvars
+# ================================================================
 
+# 项目基本信息
 project_name = "nushungry"
 environment  = "dev"
-aws_region   = "ap-southeast-1"
+aws_region   = "ap-southeast-1"  # 新加坡
 
-# 数据库密码(请替换为强密码)
-db_password      = "YOUR_STRONG_DB_PASSWORD_HERE"
+# ================================================================
+# 🔐 数据库密码(必填)
+# ================================================================
+# ⚠️  请使用强密码(至少 16 字符)
+# 生成强密码: openssl rand -base64 32
+
+# RDS PostgreSQL 主密码
+db_password = "YOUR_STRONG_DB_PASSWORD_HERE"
+
+# MongoDB 密码(DocumentDB)
 mongodb_password = "YOUR_STRONG_MONGODB_PASSWORD_HERE"
+
+# RabbitMQ 密码(Amazon MQ)
+# ⚠️  至少 12 个字符
+rabbitmq_password = "YOUR_STRONG_RABBITMQ_PASSWORD_HERE"
+
+# ================================================================
+# 🔑 JWT Secret(必填)
+# ================================================================
+# ⚠️  至少 256 位(32 字节)
+# 生成命令: openssl rand -base64 32
+# jwt_secret = "YOUR_JWT_SECRET_AT_LEAST_32_BYTES_LONG"
+
+# ================================================================
+# 🗄️ RDS 配置(可选,使用默认值)
+# ================================================================
+# rds_instance_class = "db.t3.micro"
+# rds_allocated_storage = 20
+# rds_multi_az = false
+# rds_skip_final_snapshot = true
+
+# ================================================================
+# 📨 Amazon MQ 配置(可选,使用默认值)
+# ================================================================
+# RabbitMQ 用户名
+# rabbitmq_username = "admin"
+
+# Amazon MQ 实例类型
+# 开发环境: mq.t3.micro (默认)
+# 生产环境: mq.m5.large
+# amazonmq_instance_type = "mq.t3.micro"
+
+# 部署模式
+# 开发环境: SINGLE_INSTANCE (默认)
+# 生产环境: CLUSTER_MULTI_AZ
+# amazonmq_deployment_mode = "SINGLE_INSTANCE"
+
+# 告警配置
+# enable_amazonmq_alarms = true
+# amazonmq_connection_threshold = 100
+# amazonmq_memory_threshold = 400000000  # 400MB for mq.t3.micro
+
+# ================================================================
+# 📝 部署后自动创建的数据库
+# ================================================================
+# Terraform 将在 RDS 部署后自动创建以下数据库:
+#   ✅ nushungry_users   - User Service
+#   ✅ cafeteria_db      - Cafeteria Service
+#   ✅ media_db          - Media Service
+#   ✅ preference_db     - Preference Service
+#
+# 无需手动创建!执行 terraform apply 即可。

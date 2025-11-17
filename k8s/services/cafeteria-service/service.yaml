@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cafeteria-service
+  namespace: nushungry-dev
+  labels:
+    app: cafeteria-service
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: cafeteria-service
+  ports:
+  - name: http
+    port: 8083
+    targetPort: 8083
+    protocol: TCP
+  sessionAffinity: None

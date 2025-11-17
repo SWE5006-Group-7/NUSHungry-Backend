@@ -1,0 +1,364 @@
+# ============================================================================
+# 构建并推送 Docker 镜像工作流
+# ============================================================================
+# 用途: 构建 Docker 镜像并推送到 AWS ECR
+# 触发: Push 到 main 分支 (且 CI 通过后) 或手动触发
+# ============================================================================
+
+name: Build and Push Docker Images
+
+on:
+  # Push 到 main 分支时自动触发
+  push:
+    branches:
+      - main
+    paths:
+      - '*-service/**'
+      - '.github/workflows/build-and-push.yml'
+
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Services to build (comma-separated, or "all")'
+        required: true
+        default: 'all'
+        type: string
+      tag:
+        description: 'Image tag (e.g., v1.0.0, latest)'
+        required: true
+        default: 'latest'
+        type: string
+
+env:
+  AWS_REGION: ap-southeast-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com
+  JAVA_VERSION: '17'
+
+jobs:
+  # =========================================================================
+  # Job 1: 确定需要构建的服务
+  # =========================================================================
+  determine-services:
+    name: Determine Services to Build
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-services.outputs.services }}
+      tag: ${{ steps.set-tag.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 获取上一次提交,用于检测变更
+
+      - name: Determine services to build
+        id: set-services
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # 手动触发时使用输入的服务列表
+            if [ "${{ github.event.inputs.services }}" == "all" ]; then
+              SERVICES='["user-service","cafeteria-service","review-service","media-service","preference-service"]'
+            else
+              # 将逗号分隔的字符串转换为 JSON 数组
+              SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -R -s -c 'split(",") | map(select(length > 0) | gsub("^\\s+|\\s+$";""))')
+            fi
+          else
+            # Push 触发时检测变更的服务
+            CHANGED_SERVICES=()
+            for service in user-service cafeteria-service review-service media-service preference-service; do
+              if git diff --name-only HEAD~1 HEAD | grep -q "^$service/"; then
+                CHANGED_SERVICES+=("\"$service\"")
+              fi
+            done
+
+            if [ ${#CHANGED_SERVICES[@]} -eq 0 ]; then
+              # 如果没有服务变更,构建所有服务
+              SERVICES='["user-service","cafeteria-service","review-service","media-service","preference-service"]'
+            else
+              SERVICES="[$(IFS=,; echo "${CHANGED_SERVICES[*]}")]"
+            fi
+          fi
+
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "Services to build: $SERVICES"
+
+      - name: Determine image tag
+        id: set-tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          else
+            # 使用短 commit SHA 作为标签
+            TAG="sha-${GITHUB_SHA::7}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Image tag: $TAG"
+
+  # =========================================================================
+  # Job 2: 构建并推送 Docker 镜像
+  # =========================================================================
+  build-and-push:
+    name: Build & Push
+    runs-on: ubuntu-latest
+    needs: determine-services
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.determine-services.outputs.services) }}
+
+    permissions:
+      contents: read
+      id-token: write  # 用于 OIDC 认证
+
+    steps:
+      # =====================================================================
+      # 1. 检出代码
+      # =====================================================================
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # =====================================================================
+      # 2. 配置 AWS 凭证
+      # =====================================================================
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # =====================================================================
+      # 3. 登录到 AWS ECR
+      # =====================================================================
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # =====================================================================
+      # 4. 设置 Java 环境
+      # =====================================================================
+      - name: Setup Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # =====================================================================
+      # 5. 构建 JAR 文件
+      # =====================================================================
+      - name: Build JAR for ${{ matrix.service }}
+        working-directory: ${{ matrix.service }}
+        run: |
+          echo "Building ${{ matrix.service }}..."
+          mvn clean package -DskipTests -B
+
+      # =====================================================================
+      # 6. 设置 Docker Buildx
+      # =====================================================================
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # =====================================================================
+      # 7. 提取元数据
+      # =====================================================================
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=${{ needs.determine-services.outputs.tag }}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+
+      # =====================================================================
+      # 8. 构建并推送 Docker 镜像
+      # =====================================================================
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          file: ./${{ matrix.service }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ needs.determine-services.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      # =====================================================================
+      # 9. 扫描镜像漏洞 (可选)
+      # =====================================================================
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ matrix.service }}:${{ needs.determine-services.outputs.tag }}
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.service }}.sarif'
+          severity: 'CRITICAL,HIGH'
+        continue-on-error: true
+
+      - name: Upload Trivy results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
+        continue-on-error: true
+
+      # =====================================================================
+      # 10. 输出镜像信息
+      # =====================================================================
+      - name: Output image info
+        run: |
+          echo "## 🐳 Docker Image Built" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service**: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry**: ${{ env.ECR_REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags**:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "**Digest**: ${{ steps.build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+
+  # =========================================================================
+  # Job 3: 更新 Kubernetes 部署清单 (可选)
+  # =========================================================================
+  update-k8s-manifests:
+    name: Update K8s Manifests
+    runs-on: ubuntu-latest
+    needs:
+      - determine-services
+      - build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update deployment manifests
+        run: |
+          TAG="${{ needs.determine-services.outputs.tag }}"
+          SERVICES="${{ needs.determine-services.outputs.services }}"
+
+          echo "Updating manifests with tag: $TAG"
+
+          # 遍历所有服务
+          for service in $(echo $SERVICES | jq -r '.[]'); do
+            manifest_file="k8s/services/${service}/deployment.yaml"
+
+            if [ -f "$manifest_file" ]; then
+              echo "Updating $manifest_file..."
+
+              # 使用 yq 更新镜像标签 (如果安装了 yq)
+              if command -v yq &> /dev/null; then
+                yq eval ".spec.template.spec.containers[0].image = \"${{ env.ECR_REGISTRY }}/${service}:${TAG}\"" -i "$manifest_file"
+              else
+                # 使用 sed 作为后备方案
+                sed -i "s|image: .*/${service}:.*|image: ${{ env.ECR_REGISTRY }}/${service}:${TAG}|g" "$manifest_file"
+              fi
+
+              echo "✅ Updated $service to $TAG"
+            else
+              echo "⚠️ Manifest not found: $manifest_file"
+            fi
+          done
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add k8s/
+            git commit -m "chore: update image tags to ${{ needs.determine-services.outputs.tag }}"
+            git push
+          fi
+        continue-on-error: true
+
+  # =========================================================================
+  # Job 4: 构建总结
+  # =========================================================================
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs:
+      - determine-services
+      - build-and-push
+    if: always()
+
+    steps:
+      - name: Generate build summary
+        run: |
+          echo "# 🚀 Build & Push Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: \`${{ needs.determine-services.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Services Built" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '${{ needs.determine-services.outputs.services }}' | jq . >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Result**: ${{ needs.build-and-push.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Images pushed to ECR: \`${{ env.ECR_REGISTRY }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Ready for deployment to Kubernetes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deploy Commands" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Configure kubectl" >> $GITHUB_STEP_SUMMARY
+          echo "aws eks update-kubeconfig --name <cluster-name> --region ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Deploy services" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl apply -f k8s/services/" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Check overall status
+        run: |
+          if [ "${{ needs.build-and-push.result }}" != "success" ]; then
+            echo "❌ Build and push failed!"
+            exit 1
+          fi
+          echo "✅ All images built and pushed successfully!"
+
+  # =========================================================================
+  # Job 5: 触发部署
+  # =========================================================================
+  trigger-deployment:
+    name: Trigger Deployment
+    runs-on: ubuntu-latest
+    needs:
+      - determine-services
+      - build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Trigger deployment workflow
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: deploy
+          client-payload: |
+            {
+              "environment": "dev",
+              "services": ${{ needs.determine-services.outputs.services }},
+              "tag": "${{ needs.determine-services.outputs.tag }}",
+              "commit_sha": "${{ github.sha }}",
+              "ref": "${{ github.ref }}"
+            }

@@ -26,12 +26,15 @@ public class StallService {
         this.stallRepository = stallRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<Stall> findAll() {
-        return stallRepository.findAll();
+        // 使用 findAllWithCafeteria() 来急切加载 Cafeteria，避免懒加载异常
+        return stallRepository.findAllWithCafeteria();
     }
 
     public Optional<Stall> findById(Long id) {
-        return stallRepository.findById(id);
+        // 使用 findByIdWithCafeteria() 来急切加载 Cafeteria，避免懒加载异常
+        return stallRepository.findByIdWithCafeteria(id);
     }
 
     public List<Stall> findByCafeteriaId(Long cafeteriaId) {

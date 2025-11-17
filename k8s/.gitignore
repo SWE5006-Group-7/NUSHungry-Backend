@@ -1,0 +1,28 @@
+# 不要提交包含真实密码的 Secret 文件
+# databases/ 目录下的 YAML 文件仅为模板
+
+# 环境变量文件
+.env
+.env.*
+*.env
+
+# 如果你手动创建了包含真实值的 Secret YAML
+*-secret-values.yaml
+secrets-*.yaml
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~
+
+# 日志文件
+*.log
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.iml

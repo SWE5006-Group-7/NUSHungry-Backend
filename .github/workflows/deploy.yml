@@ -1,0 +1,539 @@
+# ============================================================================
+# Kubernetes 部署工作流 (通用多环境)
+# ============================================================================
+# 用途: 将 Docker 镜像部署到 AWS EKS
+# 支持: 开发环境、测试环境、生产环境
+# 触发: 手动触发、镜像推送成功后自动触发、或 repository_dispatch
+# ============================================================================
+
+name: Deploy to Kubernetes
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      services:
+        description: 'Services to deploy (comma-separated, or "all")'
+        required: true
+        default: 'all'
+        type: string
+      tag:
+        description: 'Image tag to deploy'
+        required: true
+        default: 'latest'
+        type: string
+      skip_health_check:
+        description: 'Skip health check after deployment'
+        required: false
+        default: false
+        type: boolean
+
+  # 由 build-and-push workflow 触发
+  repository_dispatch:
+    types: [deploy]
+
+  # workflow_run 触发 (当 build-and-push 成功完成后)
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types:
+      - completed
+    branches:
+      - main
+      - develop
+
+env:
+  AWS_REGION: ap-southeast-1
+  DEPLOYMENT_TIMEOUT: 600s
+
+jobs:
+  # =========================================================================
+  # Job 1: 确定部署配置
+  # =========================================================================
+  determine-config:
+    name: Determine Deployment Config
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.config.outputs.environment }}
+      cluster_name: ${{ steps.config.outputs.cluster_name }}
+      namespace: ${{ steps.config.outputs.namespace }}
+      services: ${{ steps.config.outputs.services }}
+      tag: ${{ steps.config.outputs.tag }}
+
+    steps:
+      - name: Determine environment and config
+        id: config
+        run: |
+          # 确定环境
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            ENV="${{ github.event.client_payload.environment || 'dev' }}"
+          else
+            # workflow_run 触发时根据分支确定环境
+            if [ "${{ github.event.workflow_run.head_branch }}" == "main" ]; then
+              ENV="dev"
+            else
+              ENV="dev"
+            fi
+          fi
+
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+
+          # 根据环境设置集群名称和命名空间
+          case $ENV in
+            prod)
+              CLUSTER="nushungry-prod-eks"
+              NAMESPACE="nushungry-prod"
+              ;;
+            staging)
+              CLUSTER="nushungry-staging-eks"
+              NAMESPACE="nushungry-staging"
+              ;;
+            *)
+              CLUSTER="nushungry-dev-eks"
+              NAMESPACE="nushungry-dev"
+              ;;
+          esac
+
+          echo "cluster_name=$CLUSTER" >> $GITHUB_OUTPUT
+          echo "namespace=$NAMESPACE" >> $GITHUB_OUTPUT
+
+          echo "Environment: $ENV"
+          echo "Cluster: $CLUSTER"
+          echo "Namespace: $NAMESPACE"
+
+      - name: Determine services to deploy
+        id: services
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ github.event.inputs.services }}" == "all" ]; then
+              SERVICES='["user-service","cafeteria-service","review-service","media-service","preference-service"]'
+            else
+              SERVICES=$(echo '${{ github.event.inputs.services }}' | jq -R -s -c 'split(",") | map(select(length > 0) | gsub("^\\s+|\\s+$";""))')
+            fi
+          elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            SERVICES='${{ github.event.client_payload.services }}'
+          else
+            # workflow_run 触发时部署所有服务
+            SERVICES='["user-service","cafeteria-service","review-service","media-service","preference-service"]'
+          fi
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "Services to deploy: $SERVICES"
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            TAG="${{ github.event.inputs.tag }}"
+          elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            TAG="${{ github.event.client_payload.tag }}"
+          else
+            TAG="latest"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Deploying image tag: $TAG"
+
+  # =========================================================================
+  # Job 2: 验证部署前提条件
+  # =========================================================================
+  validate-prerequisites:
+    name: Validate Prerequisites
+    runs-on: ubuntu-latest
+    needs: determine-config
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'repository_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify K8s manifests exist
+        run: |
+          SERVICES='${{ needs.determine-config.outputs.services }}'
+          for service in $(echo $SERVICES | jq -r '.[]'); do
+            manifest="k8s/services/${service}/deployment.yaml"
+            if [ ! -f "$manifest" ]; then
+              echo "❌ Missing manifest: $manifest"
+              exit 1
+            fi
+            echo "✅ Found manifest: $manifest"
+          done
+
+  # =========================================================================
+  # Job 3: 部署到 EKS
+  # =========================================================================
+  deploy-to-eks:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs:
+      - determine-config
+      - validate-prerequisites
+    environment: ${{ needs.determine-config.outputs.environment }}
+
+    strategy:
+      fail-fast: false
+      max-parallel: 2  # 逐步部署,避免同时滚动更新所有服务
+      matrix:
+        service: ${{ fromJson(needs.determine-config.outputs.services) }}
+
+    steps:
+      # =====================================================================
+      # 1. 检出代码
+      # =====================================================================
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # =====================================================================
+      # 2. 配置 AWS 凭证
+      # =====================================================================
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # =====================================================================
+      # 3. 配置 kubectl
+      # =====================================================================
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ needs.determine-config.outputs.cluster_name }} \
+            --region ${{ env.AWS_REGION }}
+
+          # 验证集群连接
+          kubectl cluster-info
+          kubectl get nodes
+
+      # =====================================================================
+      # 4. 创建/更新 Namespace
+      # =====================================================================
+      - name: Ensure namespace exists
+        run: |
+          kubectl get namespace ${{ needs.determine-config.outputs.namespace }} || \
+          kubectl create namespace ${{ needs.determine-config.outputs.namespace }}
+
+      # =====================================================================
+      # 5. 创建/更新 Secrets (首次部署)
+      # =====================================================================
+      - name: Create/Update Kubernetes Secrets
+        run: |
+          NAMESPACE="${{ needs.determine-config.outputs.namespace }}"
+
+          # PostgreSQL Secret
+          kubectl create secret generic postgres-secret \
+            --from-literal=username=postgres \
+            --from-literal=password='${{ secrets.DB_PASSWORD }}' \
+            --from-literal=url='${{ secrets.POSTGRES_URL }}' \
+            --namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # MongoDB Secret
+          kubectl create secret generic mongodb-secret \
+            --from-literal=username=admin \
+            --from-literal=password='${{ secrets.MONGODB_PASSWORD }}' \
+            --from-literal=uri='${{ secrets.MONGODB_URI }}' \
+            --namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Redis Secret
+          kubectl create secret generic redis-secret \
+            --from-literal=host='${{ secrets.REDIS_HOST }}' \
+            --from-literal=port=6379 \
+            --from-literal=password='${{ secrets.REDIS_PASSWORD }}' \
+            --namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # JWT Secret
+          kubectl create secret generic jwt-secret \
+            --from-literal=secret='${{ secrets.JWT_SECRET }}' \
+            --namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          # Amazon MQ Secret
+          kubectl create secret generic amazonmq-secret \
+            --from-literal=host='${{ secrets.RABBITMQ_HOST }}' \
+            --from-literal=port=5671 \
+            --from-literal=username=admin \
+            --from-literal=password='${{ secrets.RABBITMQ_PASSWORD }}' \
+            --from-literal=vhost="/" \
+            --from-literal=ssl="true" \
+            --namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          echo "✅ All secrets created/updated"
+
+      # =====================================================================
+      # 6. 更新部署清单中的镜像标签
+      # =====================================================================
+      - name: Update image tag in deployment manifest
+        run: |
+          SERVICE="${{ matrix.service }}"
+          TAG="${{ needs.determine-config.outputs.tag }}"
+          ECR_REGISTRY="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          MANIFEST="k8s/services/${SERVICE}/deployment.yaml"
+
+          echo "Updating $MANIFEST with image: ${ECR_REGISTRY}/${SERVICE}:${TAG}"
+
+          # 使用 sed 更新镜像标签
+          sed -i "s|image: .*/${SERVICE}:.*|image: ${ECR_REGISTRY}/${SERVICE}:${TAG}|g" "$MANIFEST"
+
+          echo "Updated manifest:"
+          grep "image:" "$MANIFEST"
+
+      # =====================================================================
+      # 7. 应用 ConfigMap (如果存在)
+      # =====================================================================
+      - name: Apply ConfigMaps
+        run: |
+          if [ -f "k8s/base/configmap.yaml" ]; then
+            kubectl apply -f k8s/base/configmap.yaml -n ${{ needs.determine-config.outputs.namespace }}
+          fi
+        continue-on-error: true
+
+      # =====================================================================
+      # 8. 部署服务
+      # =====================================================================
+      - name: Deploy ${{ matrix.service }}
+        run: |
+          SERVICE="${{ matrix.service }}"
+          NAMESPACE="${{ needs.determine-config.outputs.namespace }}"
+
+          echo "Deploying $SERVICE to $NAMESPACE..."
+
+          # 应用 Deployment
+          kubectl apply -f k8s/services/${SERVICE}/deployment.yaml -n $NAMESPACE
+
+          # 应用 Service
+          kubectl apply -f k8s/services/${SERVICE}/service.yaml -n $NAMESPACE
+
+          # 应用 HPA (如果存在)
+          if [ -f "k8s/services/${SERVICE}/hpa.yaml" ]; then
+            kubectl apply -f k8s/services/${SERVICE}/hpa.yaml -n $NAMESPACE
+          fi
+
+      # =====================================================================
+      # 9. 等待滚动更新完成
+      # =====================================================================
+      - name: Wait for rollout to complete
+        run: |
+          SERVICE="${{ matrix.service }}"
+          NAMESPACE="${{ needs.determine-config.outputs.namespace }}"
+
+          echo "Waiting for $SERVICE deployment to complete..."
+
+          kubectl rollout status deployment/${SERVICE} \
+            -n $NAMESPACE \
+            --timeout=${{ env.DEPLOYMENT_TIMEOUT }}
+
+      # =====================================================================
+      # 10. 验证部署
+      # =====================================================================
+      - name: Verify deployment
+        run: |
+          SERVICE="${{ matrix.service }}"
+          NAMESPACE="${{ needs.determine-config.outputs.namespace }}"
+
+          echo "Pod status:"
+          kubectl get pods -l app=${SERVICE} -n $NAMESPACE
+
+          echo ""
+          echo "Deployment status:"
+          kubectl get deployment ${SERVICE} -n $NAMESPACE
+
+          echo ""
+          echo "Recent events:"
+          kubectl get events -n $NAMESPACE \
+            --field-selector involvedObject.name=${SERVICE} \
+            --sort-by='.lastTimestamp' | tail -10
+
+      # =====================================================================
+      # 11. 健康检查
+      # =====================================================================
+      - name: Health check
+        if: github.event.inputs.skip_health_check != 'true'
+        run: |
+          SERVICE="${{ matrix.service }}"
+          NAMESPACE="${{ needs.determine-config.outputs.namespace }}"
+
+          echo "Performing health check for $SERVICE..."
+
+          # 获取 Pod 名称
+          POD_NAME=$(kubectl get pods -l app=${SERVICE} -n $NAMESPACE \
+            -o jsonpath='{.items[0].metadata.name}')
+
+          if [ -z "$POD_NAME" ]; then
+            echo "❌ No pod found for $SERVICE"
+            exit 1
+          fi
+
+          # 等待 Pod 进入 Running 状态
+          kubectl wait --for=condition=ready pod/${POD_NAME} \
+            -n $NAMESPACE \
+            --timeout=300s
+
+          # 端口转发并测试健康端点
+          kubectl port-forward pod/${POD_NAME} 8080:8080 -n $NAMESPACE &
+          PF_PID=$!
+
+          sleep 5
+
+          # 测试 actuator health 端点
+          if curl -f http://localhost:8080/actuator/health; then
+            echo "✅ Health check passed for $SERVICE"
+          else
+            echo "❌ Health check failed for $SERVICE"
+            kill $PF_PID 2>/dev/null || true
+            exit 1
+          fi
+
+          kill $PF_PID 2>/dev/null || true
+        continue-on-error: true
+
+      # =====================================================================
+      # 12. 输出部署信息
+      # =====================================================================
+      - name: Output deployment info
+        run: |
+          echo "## 🚀 Deployment Complete: ${{ matrix.service }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment**: \`${{ needs.determine-config.outputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag**: \`${{ needs.determine-config.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Namespace**: \`${{ needs.determine-config.outputs.namespace }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pod Status" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          kubectl get pods -l app=${{ matrix.service }} -n ${{ needs.determine-config.outputs.namespace }} >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # =========================================================================
+  # Job 4: 部署 Ingress (所有服务部署完成后)
+  # =========================================================================
+  deploy-ingress:
+    name: Deploy Ingress
+    runs-on: ubuntu-latest
+    needs:
+      - determine-config
+      - deploy-to-eks
+    if: success()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ needs.determine-config.outputs.cluster_name }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Deploy Ingress
+        run: |
+          NAMESPACE="${{ needs.determine-config.outputs.namespace }}"
+
+          if [ -f "k8s/ingress/ingress.yaml" ]; then
+            kubectl apply -f k8s/ingress/ingress.yaml -n $NAMESPACE
+            echo "✅ Ingress deployed"
+
+            # 等待 ALB 创建
+            echo "Waiting for Load Balancer to be ready..."
+            sleep 30
+
+            # 获取 ALB 地址
+            ALB_URL=$(kubectl get ingress -n $NAMESPACE \
+              -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
+
+            if [ -n "$ALB_URL" ]; then
+              echo "🌐 Application available at: http://$ALB_URL"
+              echo "ALB_URL=$ALB_URL" >> $GITHUB_ENV
+            fi
+          else
+            echo "⚠️ Ingress manifest not found, skipping..."
+          fi
+        continue-on-error: true
+
+  # =========================================================================
+  # Job 5: 部署总结
+  # =========================================================================
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs:
+      - determine-config
+      - deploy-to-eks
+      - deploy-ingress
+    if: always()
+
+    steps:
+      - name: Generate deployment summary
+        run: |
+          echo "# 🎉 Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: \`${{ needs.determine-config.outputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Cluster**: \`${{ needs.determine-config.outputs.cluster_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Namespace**: \`${{ needs.determine-config.outputs.namespace }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: \`${{ needs.determine-config.outputs.tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed At**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Services Deployed" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '${{ needs.determine-config.outputs.services }}' | jq . >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Deployment Status" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deploy to EKS**: ${{ needs.deploy-to-eks.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deploy Ingress**: ${{ needs.deploy-ingress.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Verification Commands" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# Configure kubectl" >> $GITHUB_STEP_SUMMARY
+          echo "aws eks update-kubeconfig --name ${{ needs.determine-config.outputs.cluster_name }} --region ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Check pod status" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl get pods -n ${{ needs.determine-config.outputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Check services" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl get svc -n ${{ needs.determine-config.outputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Check ingress" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl get ingress -n ${{ needs.determine-config.outputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# View logs" >> $GITHUB_STEP_SUMMARY
+          echo "kubectl logs -f deployment/<service-name> -n ${{ needs.determine-config.outputs.namespace }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Check overall deployment status
+        run: |
+          if [ "${{ needs.deploy-to-eks.result }}" != "success" ]; then
+            echo "❌ Deployment failed!"
+            exit 1
+          fi
+          echo "✅ All services deployed successfully to ${{ needs.determine-config.outputs.environment }} environment!"

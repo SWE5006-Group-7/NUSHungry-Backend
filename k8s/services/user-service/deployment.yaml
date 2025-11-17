@@ -1,0 +1,152 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: nushungry-dev
+  labels:
+    app: user-service
+    component: backend
+    tier: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: user-service
+        component: backend
+        tier: api
+    spec:
+      containers:
+      - name: user-service
+        image: ${ECR_REGISTRY}/user-service:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8081
+          name: http
+          protocol: TCP
+        env:
+        # 服务端口
+        - name: SERVER_PORT
+          value: "8081"
+
+        # 数据库配置（从 Secret 获取）
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: user-db-url
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+
+        # JWT 配置（从 Secret 获取）
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: secret
+        - name: JWT_EXPIRATION
+          value: "86400000"  # 24小时（毫秒）
+
+        # 服务发现配置（从 ConfigMap 获取）
+        - name: CAFETERIA_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: CAFETERIA_SERVICE_URL
+        - name: REVIEW_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: REVIEW_SERVICE_URL
+        - name: MEDIA_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: MEDIA_SERVICE_URL
+        - name: PREFERENCE_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: PREFERENCE_SERVICE_URL
+
+        # 日志配置
+        - name: LOGGING_LEVEL_ROOT
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: LOGGING_LEVEL_ROOT
+        - name: LOGGING_LEVEL_COM_NUSHUNGRY
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: LOGGING_LEVEL_COM_NUSHUNGRY
+
+        # Actuator 配置
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+
+        # 时区配置
+        - name: TZ
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: TZ
+
+        # JVM 配置
+        - name: JAVA_OPTS
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: JAVA_OPTS
+
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
+
+      terminationGracePeriodSeconds: 30

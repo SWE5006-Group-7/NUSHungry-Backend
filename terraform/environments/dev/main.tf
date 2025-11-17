@@ -57,9 +57,9 @@ module "eks" {
   kubernetes_version = "1.28"
   instance_types     = ["t3.medium"]
   capacity_type      = "ON_DEMAND"
-  desired_capacity   = 2
-  min_capacity       = 1
-  max_capacity       = 4
+  desired_capacity   = 3
+  min_capacity       = 2
+  max_capacity       = 5
 
   depends_on = [module.vpc]
 }
@@ -74,7 +74,7 @@ module "rds" {
   private_subnet_ids        = module.vpc.private_subnet_ids
   allowed_security_groups   = [module.eks.cluster_security_group_id]
 
-  engine_version            = "16.1"
+  engine_version            = "16"  # 修复: 改为 16 (不是 16.1)
   instance_class            = "db.t3.micro"
   allocated_storage         = 20
   max_allocated_storage     = 100
@@ -102,7 +102,7 @@ module "documentdb" {
   engine_version          = "5.0.0"
   instance_class          = "db.t3.medium"
   instance_count          = 1
-  master_username         = "admin"
+  master_username         = "docdbadmin"  # 修复: 不能使用 admin (保留字)
   master_password         = var.mongodb_password
   backup_retention_period = 7
   skip_final_snapshot     = true
@@ -139,4 +139,40 @@ module "ecr" {
   project_name     = var.project_name
   environment      = var.environment
   image_count_to_keep = 10
+}
+
+# Amazon MQ (RabbitMQ) 模块
+module "amazonmq" {
+  source = "../../modules/amazonmq"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  # 网络配置
+  vpc_id                     = module.vpc.vpc_id
+  subnet_ids                 = module.vpc.private_subnet_ids
+  allowed_security_group_ids = [module.eks.cluster_security_group_id]
+
+  # RabbitMQ 配置
+  rabbitmq_engine_version = "3.13"  # 修复: AWS 只支持 3.13
+  instance_type          = var.amazonmq_instance_type
+  deployment_mode        = var.amazonmq_deployment_mode
+  storage_type           = "ebs"
+
+  # 认证
+  rabbitmq_username = var.rabbitmq_username
+  rabbitmq_password = var.rabbitmq_password
+
+  # 维护窗口 (新加坡时区周日凌晨 3 点)
+  maintenance_day_of_week = "SUNDAY"
+  maintenance_time_of_day = "03:00"
+  maintenance_time_zone   = "Asia/Singapore"
+
+  # 监控和告警
+  enable_cloudwatch_alarms   = var.enable_amazonmq_alarms
+  connection_count_threshold = var.amazonmq_connection_threshold
+  cpu_utilization_threshold  = 80
+  memory_usage_threshold     = var.amazonmq_memory_threshold
+
+  depends_on = [module.vpc]
 }

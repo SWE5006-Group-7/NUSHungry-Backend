@@ -35,7 +35,7 @@ variable "instance_count" {
 
 variable "master_username" {
   type    = string
-  default = "admin"
+  default = "docdbadmin"
 }
 
 variable "master_password" {

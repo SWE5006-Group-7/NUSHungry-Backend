@@ -83,21 +83,23 @@ public class JwtUtil {
     }
 
     private String createAccessToken(Map<String, Object> claims, String subject) {
+        // 注意：必须先设置 subject 等标准 claims，再设置自定义 claims
+        // 因为 setClaims() 会清空之前所有的 claims
         return Jwts.builder()
-                .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+                .addClaims(claims)  // 使用 addClaims() 而不是 setClaims()
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     private String createRefreshToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
-                .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
+                .addClaims(claims)  // 使用 addClaims() 而不是 setClaims()
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -105,10 +107,10 @@ public class JwtUtil {
     private String createToken(Map<String, Object> claims, String subject) {
         // 保持向后兼容
         return Jwts.builder()
-                .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
+                .addClaims(claims)  // 使用 addClaims() 而不是 setClaims()
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }

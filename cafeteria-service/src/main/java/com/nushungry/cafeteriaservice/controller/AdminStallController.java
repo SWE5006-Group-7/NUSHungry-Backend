@@ -22,7 +22,7 @@ import java.util.*;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/admin/stalls")
+@RequestMapping("/api/stalls/admin")
 @RequiredArgsConstructor
 @Tag(name = "Admin Stall Management", description = "管理员摊位管理接口")
 @SecurityRequirement(name = "Bearer Authentication")

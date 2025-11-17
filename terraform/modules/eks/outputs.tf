@@ -37,3 +37,13 @@ output "node_group_id" {
   description = "EKS 节点组 ID"
   value       = aws_eks_node_group.main.id
 }
+
+output "ebs_csi_driver_role_arn" {
+  description = "EBS CSI Driver IAM 角色 ARN"
+  value       = aws_iam_role.ebs_csi_driver.arn
+}
+
+output "ebs_csi_driver_addon_version" {
+  description = "EBS CSI Driver 插件版本"
+  value       = aws_eks_addon.ebs_csi_driver.addon_version
+}

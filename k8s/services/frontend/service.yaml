@@ -1,0 +1,37 @@
+# ============================================
+# NUSHungry Frontend - Kubernetes Service
+# ============================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: nushungry-dev
+  labels:
+    app: frontend
+    component: web
+    tier: frontend
+  annotations:
+    # Service 描述
+    description: "NUSHungry Frontend Service - Nginx serving static files"
+spec:
+  # Service 类型
+  # ClusterIP: 仅集群内部访问（通过 Ingress 暴露到外部）
+  type: ClusterIP
+  
+  # Session 亲和性（可选）
+  # sessionAffinity: ClientIP  # 同一客户端的请求始终路由到同一 Pod
+  # sessionAffinityConfig:
+  #   clientIP:
+  #     timeoutSeconds: 10800  # Session 保持时间（3 小时）
+  
+  # 端口配置
+  ports:
+  - port: 80            # Service 暴露的端口
+    targetPort: 80      # Pod 容器的端口
+    protocol: TCP
+    name: http
+  
+  # 选择器：匹配 Pod 标签
+  selector:
+    app: frontend

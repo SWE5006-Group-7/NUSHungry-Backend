@@ -72,12 +72,6 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!-- RabbitMQ for message queue -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-amqp</artifactId>
-        </dependency>
-
         <!-- Email Support -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

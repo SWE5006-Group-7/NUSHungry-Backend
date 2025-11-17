@@ -1,0 +1,164 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media-service
+  namespace: nushungry-dev
+  labels:
+    app: media-service
+    component: backend
+    tier: api
+spec:
+  replicas: 1  # 注意: 使用 ReadWriteOnce PVC 时只能运行 1 个副本
+  selector:
+    matchLabels:
+      app: media-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: media-service
+        component: backend
+        tier: api
+    spec:
+      containers:
+      - name: media-service
+        image: ${ECR_REGISTRY}/media-service:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8085
+          name: http
+          protocol: TCP
+        env:
+        # 服务端口
+        - name: SERVER_PORT
+          value: "8085"
+
+        # 数据库配置(从 Secret 获取)
+        - name: MEDIA_DB_URL
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: media-db-url
+        - name: MEDIA_DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: username
+        - name: MEDIA_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+
+        # 文件上传配置
+        - name: SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE
+          value: "10MB"
+        - name: SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE
+          value: "10MB"
+
+        # 文件存储路径（使用 PersistentVolume）
+        - name: FILE_UPLOAD_DIR
+          value: "/app/uploads"
+
+        # 服务发现配置
+        - name: USER_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: USER_SERVICE_URL
+
+        # 日志配置
+        - name: LOGGING_LEVEL_ROOT
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: LOGGING_LEVEL_ROOT
+        - name: LOGGING_LEVEL_COM_NUSHUNGRY
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: LOGGING_LEVEL_COM_NUSHUNGRY
+
+        # Actuator 配置
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+
+        # 时区配置
+        - name: TZ
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: TZ
+
+        # JVM 配置
+        - name: JAVA_OPTS
+          valueFrom:
+            configMapKeyRef:
+              name: nushungry-config
+              key: JAVA_OPTS
+
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+
+        # 持久化存储卷挂载（用于文件上传）
+        volumeMounts:
+        - name: media-storage
+          mountPath: /app/uploads
+
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8085
+          initialDelaySeconds: 90
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8085
+          initialDelaySeconds: 45
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 10"]
+
+      volumes:
+      - name: media-storage
+        persistentVolumeClaim:
+          claimName: media-storage-pvc
+
+      terminationGracePeriodSeconds: 30
+---
+# PersistentVolumeClaim for media storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-storage-pvc
+  namespace: nushungry-dev
+  labels:
+    app: media-service
+spec:
+  accessModes:
+    - ReadWriteOnce  # EBS 只支持 ReadWriteOnce
+  storageClassName: gp3  # 使用新的 gp3 StorageClass (EBS CSI Driver)
+  resources:
+    requests:
+      storage: 20Gi

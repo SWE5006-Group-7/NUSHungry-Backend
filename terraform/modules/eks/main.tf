@@ -114,6 +114,12 @@ resource "aws_iam_role_policy_attachment" "node_AmazonEC2ContainerRegistryReadOn
   role       = aws_iam_role.node_group.name
 }
 
+# 添加 SSM 支持 (用于 EKS 管理节点)
+resource "aws_iam_role_policy_attachment" "node_AmazonSSMManagedInstanceCore" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  role       = aws_iam_role.node_group.name
+}
+
 # 节点组安全组
 resource "aws_security_group" "node_group" {
   name        = "${var.project_name}-${var.environment}-eks-node-sg"
@@ -191,6 +197,7 @@ resource "aws_eks_node_group" "main" {
     aws_iam_role_policy_attachment.node_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.node_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.node_AmazonEC2ContainerRegistryReadOnly,
+    aws_iam_role_policy_attachment.node_AmazonSSMManagedInstanceCore,
   ]
 }
 

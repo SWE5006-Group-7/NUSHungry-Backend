@@ -65,3 +65,9 @@ variable "max_capacity" {
   type        = number
   default     = 4
 }
+
+variable "ebs_csi_driver_version" {
+  description = "EBS CSI Driver 版本"
+  type        = string
+  default     = "v1.35.0-eksbuild.1"  # 可通过 aws eks describe-addon-versions --addon-name aws-ebs-csi-driver 查询最新版本
+}

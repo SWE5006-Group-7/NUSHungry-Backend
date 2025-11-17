@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: preference-service
+  namespace: nushungry-dev
+  labels:
+    app: preference-service
+    component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: preference-service
+  ports:
+  - name: http
+    port: 8086
+    targetPort: 8086
+    protocol: TCP
+  sessionAffinity: None
